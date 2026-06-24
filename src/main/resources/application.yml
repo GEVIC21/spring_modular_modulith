@@ -3,7 +3,7 @@ spring:
     name: modularMonolith
 
   datasource:
-    url: jdbc:mysql://localhost:3306/springmodulith?useSSL=false&serverTimezone=UTC
+    url: jdbc:mysql://localhost:3306/springmodulith
     username: root
     password: gevic
     driver-class-name: com.mysql.cj.jdbc.Driver
