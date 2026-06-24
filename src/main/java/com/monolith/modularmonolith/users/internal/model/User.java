@@ -9,7 +9,8 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "users")
@@ -31,42 +32,42 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Role role;
+    // Un utilisateur peut avoir plusieurs rôles dynamiques
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "users_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<Role> roles = new HashSet<>();
 
-    public User(String username, String email, String password, Role role) {
+    public User(String username, String email, String password, Set<Role> roles) {
         this.username = username;
         this.email = email;
         this.password = password;
-        this.role = role;
+        this.roles = roles;
     }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority(role.name()));
+        Set<GrantedAuthority> authorities = new HashSet<>();
+        for (Role role : roles) {
+            // 1. On injecte le Rôle (Optionnel, mais utile pour la traçabilité)
+            authorities.add(new SimpleGrantedAuthority(role.getName()));
+
+            // 2. On injecte toutes les permissions associées à ce rôle
+            for (Permission p : role.getPermissions()) {
+                authorities.add(new SimpleGrantedAuthority(p.getName()));
+            }
+        }
+        return authorities;
     }
 
-    // Utilisé en interne par Spring Security pour l'authentification
-    @Override
-    public String getPassword() { return this.password; }
-
-    // IMPORTANT : Spring Security a besoin de l'email ici pour charger l'utilisateur
-    @Override
-    public String getUsername() { return this.email; }
-
-    // Getter personnalisé pour éviter le conflit d'arguments avec le Record AuthResponse
-    public String getPublicUsername() { return this.username; }
-
-    @Override
-    public boolean isAccountNonExpired() { return true; }
-
-    @Override
-    public boolean isAccountNonLocked() { return true; }
-
-    @Override
-    public boolean isCredentialsNonExpired() { return true; }
-
-    @Override
-    public boolean isEnabled() { return true; }
+    @Override public String getPassword() { return this.password; }
+    @Override public String getUsername() { return this.email; } // Authentification par email
+    public String getPublicUsername() { return this.username; } // Pseudo affichage public
+    @Override public boolean isAccountNonExpired() { return true; }
+    @Override public boolean isAccountNonLocked() { return true; }
+    @Override public boolean isCredentialsNonExpired() { return true; }
+    @Override public boolean isEnabled() { return true; }
 }
