@@ -1,6 +1,9 @@
 package com.monolith.modularmonolith.users.internal.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -10,11 +13,17 @@ import java.util.List;
 
 @Entity
 @Table(name = "users")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(unique = true, nullable = false)
+    private String username;
 
     @Column(unique = true, nullable = false)
     private String email;
@@ -26,57 +35,38 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private Role role;
 
-    // Constructeurs
-    public User() {}
-
-    public User(String email, String password, Role role) {
+    public User(String username, String email, String password, Role role) {
+        this.username = username;
         this.email = email;
         this.password = password;
         this.role = role;
     }
 
-    // Implémentation des méthodes obligatoires de UserDetails
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority(role.name()));
     }
 
+    // Utilisé en interne par Spring Security pour l'authentification
     @Override
-    public String getPassword() {
-        return this.password;
-    }
+    public String getPassword() { return this.password; }
+
+    // IMPORTANT : Spring Security a besoin de l'email ici pour charger l'utilisateur
+    @Override
+    public String getUsername() { return this.email; }
+
+    // Getter personnalisé pour éviter le conflit d'arguments avec le Record AuthResponse
+    public String getPublicUsername() { return this.username; }
 
     @Override
-    public String getUsername() {
-        return this.email; // On utilise l'email comme identifiant principal
-    }
+    public boolean isAccountNonExpired() { return true; }
 
     @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
+    public boolean isAccountNonLocked() { return true; }
 
     @Override
-    public boolean isAccountNonLocked() {
-        return true;
-    }
+    public boolean isCredentialsNonExpired() { return true; }
 
     @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isEnabled() {
-        return true;
-    }
-
-    // Getters et Setters standards
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-    public void setPassword(String password) { this.password = password; }
-    public Role getRole() { return role; }
-    public void setRole(Role role) { this.role = role; }
+    public boolean isEnabled() { return true; }
 }

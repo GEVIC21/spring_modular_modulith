@@ -39,7 +39,7 @@ public class SecurityConfig {
                 // Configuration des règles d'accès aux URLs
                 .authorizeHttpRequests(auth -> auth
                         // Endpoints d'authentification publics (déclarés dans votre sous-package internal)
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/v1/auth/**").permitAll()
                         // Tout le reste nécessite une authentification
                         .anyRequest().authenticated()
                 )

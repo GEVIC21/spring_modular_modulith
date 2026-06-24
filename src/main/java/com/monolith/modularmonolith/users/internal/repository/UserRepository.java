@@ -8,10 +8,7 @@ import java.util.Optional;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
-
-    // Rechercher un utilisateur par son adresse email
     Optional<User> findByEmail(String email);
-
-    // Vérifier si un email existe déjà en base de données
     boolean existsByEmail(String email);
+    boolean existsByUsername(String username); // <-- Cette ligne résout l'erreur 'Cannot resolve method'
 }
