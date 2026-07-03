@@ -1,6 +1,5 @@
 package com.monolith.modularmonolith.courses.internal.model;
 
-import com.monolith.modularmonolith.users.internal.model.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -37,14 +36,11 @@ public class Course {
     @Builder.Default
     private Boolean active = true;
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "course_teachers",
-            joinColumns = @JoinColumn(name = "course_id"),
-            inverseJoinColumns = @JoinColumn(name = "teacher_id")
-    )
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "course_teacher_ids", joinColumns = @JoinColumn(name = "course_id"))
+    @Column(name = "teacher_id")
     @Builder.Default
-    private Set<User> teachers = new HashSet<>();
+    private Set<Long> teacherIds = new HashSet<>();
 
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

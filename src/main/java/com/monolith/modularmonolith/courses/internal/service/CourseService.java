@@ -5,8 +5,7 @@ import com.monolith.modularmonolith.courses.internal.dto.request.CourseRequest;
 import com.monolith.modularmonolith.courses.internal.dto.response.CourseResponse;
 import com.monolith.modularmonolith.courses.internal.model.Course;
 import com.monolith.modularmonolith.courses.internal.repository.CourseRepository;
-import com.monolith.modularmonolith.users.internal.model.User;
-import com.monolith.modularmonolith.users.internal.repository.UserRepository;
+import com.monolith.modularmonolith.users.api.UserLookup;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,7 +17,7 @@ import java.util.List;
 public class CourseService {
 
     private final CourseRepository courseRepository;
-    private final UserRepository userRepository;
+    private final UserLookup userLookup;
 
     @Transactional
     public CourseResponse createCourse(CourseRequest request) {
@@ -68,12 +67,15 @@ public class CourseService {
     @Transactional
     public CourseResponse assignTeachers(Long courseId, AssignTeachersRequest request) {
         var course = findById(courseId);
-        List<User> teachers = userRepository.findAllById(request.teacherIds());
+        var teachers = userLookup.findAllById(request.teacherIds());
         if (teachers.size() != request.teacherIds().size()) {
             throw new IllegalArgumentException("Certains enseignants sont introuvables");
         }
-        course.getTeachers().clear();
-        course.getTeachers().addAll(teachers);
+        if (teachers.stream().anyMatch(t -> !t.roles().contains("ROLE_ENSEIGNANT"))) {
+            throw new IllegalArgumentException("Tous les IDs doivent correspondre à des enseignants");
+        }
+        course.getTeacherIds().clear();
+        course.getTeacherIds().addAll(request.teacherIds());
         return toResponse(courseRepository.save(course));
     }
 
@@ -83,8 +85,8 @@ public class CourseService {
     }
 
     private CourseResponse toResponse(Course course) {
-        var teachers = course.getTeachers().stream()
-                .map(t -> new CourseResponse.TeacherSummary(t.getId(), t.getUsername(), t.getEmail()))
+        var teachers = userLookup.findAllById(course.getTeacherIds()).stream()
+                .map(t -> new CourseResponse.TeacherSummary(t.id(), t.username(), t.email()))
                 .toList();
         return new CourseResponse(
                 course.getId(), course.getCode(), course.getName(),

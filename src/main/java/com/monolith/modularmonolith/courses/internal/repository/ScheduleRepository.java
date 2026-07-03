@@ -3,7 +3,6 @@ package com.monolith.modularmonolith.courses.internal.repository;
 import com.monolith.modularmonolith.courses.internal.model.Classroom;
 import com.monolith.modularmonolith.courses.internal.model.Course;
 import com.monolith.modularmonolith.courses.internal.model.Schedule;
-import com.monolith.modularmonolith.users.internal.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,16 +16,17 @@ import java.util.List;
 public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
 
     List<Schedule> findByClassroom(Classroom classroom);
-    List<Schedule> findByTeacher(User teacher);
     List<Schedule> findByCourse(Course course);
     List<Schedule> findByDayOfWeek(DayOfWeek dayOfWeek);
     List<Schedule> findByAcademicYear(String academicYear);
     List<Schedule> findByActiveTrue();
 
+    List<Schedule> findByTeacherIdAndActiveTrue(Long teacherId);
+
     @Query("""
         SELECT s FROM Schedule s
         WHERE s.dayOfWeek = :day
-        AND s.teacher.id = :teacherId
+        AND s.teacherId = :teacherId
         AND s.active = true
         AND s.id <> :excludeId
         AND (s.startTime < :endTime AND s.endTime > :startTime)
@@ -70,6 +70,4 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
             @Param("endTime") LocalTime endTime,
             @Param("excludeId") Long excludeId
     );
-
-    List<Schedule> findByTeacherAndActiveTrue(User teacher);
 }

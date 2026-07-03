@@ -6,11 +6,9 @@ import com.monolith.modularmonolith.courses.internal.dto.request.ClassroomReques
 import com.monolith.modularmonolith.courses.internal.dto.request.EnrollStudentsRequest;
 import com.monolith.modularmonolith.courses.internal.dto.response.ClassroomResponse;
 import com.monolith.modularmonolith.courses.internal.model.Classroom;
-import com.monolith.modularmonolith.courses.internal.model.Course;
 import com.monolith.modularmonolith.courses.internal.repository.ClassroomRepository;
 import com.monolith.modularmonolith.courses.internal.repository.CourseRepository;
-import com.monolith.modularmonolith.users.internal.model.User;
-import com.monolith.modularmonolith.users.internal.repository.UserRepository;
+import com.monolith.modularmonolith.users.api.UserLookup;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,8 +20,8 @@ import java.util.List;
 public class ClassroomService {
 
     private final ClassroomRepository classroomRepository;
-    private final UserRepository userRepository;
     private final CourseRepository courseRepository;
+    private final UserLookup userLookup;
 
     @Transactional
     public ClassroomResponse createClassroom(ClassroomRequest request) {
@@ -74,34 +72,40 @@ public class ClassroomService {
     @Transactional
     public ClassroomResponse setHomeroomTeacher(Long classroomId, Long teacherId) {
         var classroom = findById(classroomId);
-        var teacher = userRepository.findById(teacherId)
+        var teacher = userLookup.findById(teacherId)
                 .orElseThrow(() -> new IllegalArgumentException("Enseignant non trouvé"));
-        classroom.setHomeroomTeacher(teacher);
+        if (!teacher.roles().contains("ROLE_ENSEIGNANT")) {
+            throw new IllegalArgumentException("L'utilisateur doit être un enseignant");
+        }
+        classroom.setHomeroomTeacherId(teacherId);
         return toResponse(classroomRepository.save(classroom));
     }
 
     @Transactional
     public ClassroomResponse enrollStudents(Long classroomId, EnrollStudentsRequest request) {
         var classroom = findById(classroomId);
-        List<User> students = userRepository.findAllById(request.studentIds());
+        var students = userLookup.findAllById(request.studentIds());
         if (students.size() != request.studentIds().size()) {
             throw new IllegalArgumentException("Certains élèves sont introuvables");
         }
-        if (classroom.getStudents().size() + students.size() > classroom.getCapacity()) {
+        if (students.stream().anyMatch(s -> !s.roles().contains("ROLE_ELEVE"))) {
+            throw new IllegalArgumentException("Tous les IDs doivent correspondre à des élèves");
+        }
+        if (classroom.getStudentIds().size() + request.studentIds().size() > classroom.getCapacity()) {
             throw new IllegalArgumentException("Capacité de la classe dépassée");
         }
-        classroom.getStudents().addAll(students);
+        classroom.getStudentIds().addAll(request.studentIds());
         return toResponse(classroomRepository.save(classroom));
     }
 
     @Transactional
     public ClassroomResponse assignCourses(Long classroomId, AssignCoursesRequest request) {
         var classroom = findById(classroomId);
-        List<Course> courses = courseRepository.findAllById(request.courseIds());
+        var courses = courseRepository.findAllById(request.courseIds());
         if (courses.size() != request.courseIds().size()) {
             throw new IllegalArgumentException("Certains cours sont introuvables");
         }
-        classroom.getCourses().addAll(courses);
+        classroom.getCourseIds().addAll(request.courseIds());
         return toResponse(classroomRepository.save(classroom));
     }
 
@@ -111,18 +115,17 @@ public class ClassroomService {
     }
 
     private ClassroomResponse toResponse(Classroom classroom) {
-        var homeroom = classroom.getHomeroomTeacher() != null
-                ? new ClassroomResponse.TeacherSummary(
-                classroom.getHomeroomTeacher().getId(),
-                classroom.getHomeroomTeacher().getUsername(),
-                classroom.getHomeroomTeacher().getEmail())
+        var homeroom = classroom.getHomeroomTeacherId() != null
+                ? userLookup.findById(classroom.getHomeroomTeacherId())
+                .map(t -> new ClassroomResponse.TeacherSummary(t.id(), t.username(), t.email()))
+                .orElse(null)
                 : null;
         return new ClassroomResponse(
                 classroom.getId(), classroom.getName(), classroom.getGradeLevel(),
                 classroom.getSection(), classroom.getAcademicYear(),
                 classroom.getRoomNumber(), classroom.getCapacity(),
                 classroom.getActive(), homeroom,
-                classroom.getStudents().size(), classroom.getCourses().size()
+                classroom.getStudentIds().size(), classroom.getCourseIds().size()
         );
     }
 }

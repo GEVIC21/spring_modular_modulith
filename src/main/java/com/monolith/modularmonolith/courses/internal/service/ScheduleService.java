@@ -8,8 +8,7 @@ import com.monolith.modularmonolith.courses.internal.model.Schedule;
 import com.monolith.modularmonolith.courses.internal.repository.ClassroomRepository;
 import com.monolith.modularmonolith.courses.internal.repository.CourseRepository;
 import com.monolith.modularmonolith.courses.internal.repository.ScheduleRepository;
-import com.monolith.modularmonolith.users.internal.model.User;
-import com.monolith.modularmonolith.users.internal.repository.UserRepository;
+import com.monolith.modularmonolith.users.api.UserLookup;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,19 +22,19 @@ public class ScheduleService {
     private final ScheduleRepository scheduleRepository;
     private final CourseRepository courseRepository;
     private final ClassroomRepository classroomRepository;
-    private final UserRepository userRepository;
+    private final UserLookup userLookup;
 
     @Transactional
     public ScheduleResponse createSchedule(ScheduleRequest request) {
         validateTimes(request);
+        validateTeacher(request.teacherId());
         var course = findCourse(request.courseId());
         var classroom = findClassroom(request.classroomId());
-        var teacher = findTeacher(request.teacherId());
 
         var schedule = Schedule.builder()
                 .course(course)
                 .classroom(classroom)
-                .teacher(teacher)
+                .teacherId(request.teacherId())
                 .dayOfWeek(request.dayOfWeek())
                 .startTime(request.startTime())
                 .endTime(request.endTime())
@@ -62,14 +61,14 @@ public class ScheduleService {
     @Transactional
     public ScheduleResponse updateSchedule(Long id, ScheduleRequest request) {
         validateTimes(request);
+        validateTeacher(request.teacherId());
         var schedule = findById(id);
         var course = findCourse(request.courseId());
         var classroom = findClassroom(request.classroomId());
-        var teacher = findTeacher(request.teacherId());
 
         schedule.setCourse(course);
         schedule.setClassroom(classroom);
-        schedule.setTeacher(teacher);
+        schedule.setTeacherId(request.teacherId());
         schedule.setDayOfWeek(request.dayOfWeek());
         schedule.setStartTime(request.startTime());
         schedule.setEndTime(request.endTime());
@@ -97,32 +96,29 @@ public class ScheduleService {
     }
 
     public List<ScheduleResponse> getByTeacher(Long teacherId) {
-        var teacher = findTeacher(teacherId);
-        return scheduleRepository.findByTeacher(teacher).stream()
-                .filter(Schedule::getActive)
+        return scheduleRepository.findByTeacherIdAndActiveTrue(teacherId).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     public List<ScheduleResponse> getMySchedule(String email) {
-        var user = userRepository.findByEmail(email)
+        var user = userLookup.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Utilisateur non trouvé"));
 
-        boolean isTeacher = user.getRoleNames().contains("ROLE_ENSEIGNANT");
-        boolean isStudent = user.getRoleNames().contains("ROLE_ELEVE");
+        boolean isTeacher = user.roles().contains("ROLE_ENSEIGNANT");
+        boolean isStudent = user.roles().contains("ROLE_ELEVE");
 
         if (isTeacher) {
-            return scheduleRepository.findByTeacherAndActiveTrue(user).stream()
+            return scheduleRepository.findByTeacherIdAndActiveTrue(user.id()).stream()
                     .map(this::toResponse)
                     .toList();
         } else if (isStudent) {
-            return classroomRepository.findByStudent(user).stream()
+            return classroomRepository.findByStudentId(user.id()).stream()
                     .flatMap(c -> c.getSchedules().stream())
                     .filter(Schedule::getActive)
                     .map(this::toResponse)
                     .toList();
         } else {
-            // Admin / SuperAdmin → toutes les séances actives
             return listAll();
         }
     }
@@ -133,11 +129,19 @@ public class ScheduleService {
         }
     }
 
+    private void validateTeacher(Long teacherId) {
+        var teacher = userLookup.findById(teacherId)
+                .orElseThrow(() -> new IllegalArgumentException("Enseignant non trouvé"));
+        if (!teacher.roles().contains("ROLE_ENSEIGNANT")) {
+            throw new IllegalArgumentException("L'utilisateur doit être un enseignant");
+        }
+    }
+
     private void validateNoConflicts(Schedule schedule, Long excludeId) {
         Long exId = excludeId != null ? excludeId : -1L;
 
         var teacherConflicts = scheduleRepository.findTeacherConflicts(
-                schedule.getDayOfWeek(), schedule.getTeacher().getId(),
+                schedule.getDayOfWeek(), schedule.getTeacherId(),
                 schedule.getStartTime(), schedule.getEndTime(), exId);
         if (!teacherConflicts.isEmpty()) {
             throw new IllegalArgumentException("Conflit d'emploi du temps : l'enseignant est déjà occupé sur ce créneau");
@@ -173,17 +177,15 @@ public class ScheduleService {
                 .orElseThrow(() -> new IllegalArgumentException("Classe non trouvée"));
     }
 
-    private User findTeacher(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Enseignant non trouvé"));
-    }
-
     private ScheduleResponse toResponse(Schedule s) {
+        var teacher = userLookup.findById(s.getTeacherId())
+                .map(t -> new ScheduleResponse.TeacherSummary(t.id(), t.username(), t.email()))
+                .orElse(new ScheduleResponse.TeacherSummary(s.getTeacherId(), "Inconnu", "N/A"));
         return new ScheduleResponse(
                 s.getId(),
                 new ScheduleResponse.CourseSummary(s.getCourse().getId(), s.getCourse().getCode(), s.getCourse().getName()),
                 new ScheduleResponse.ClassroomSummary(s.getClassroom().getId(), s.getClassroom().getName(), s.getClassroom().getGradeLevel(), s.getClassroom().getSection()),
-                new ScheduleResponse.TeacherSummary(s.getTeacher().getId(), s.getTeacher().getUsername(), s.getTeacher().getEmail()),
+                teacher,
                 s.getDayOfWeek(), s.getStartTime(), s.getEndTime(),
                 s.getRoom(), s.getAcademicYear(), s.getSemester(), s.getActive()
         );

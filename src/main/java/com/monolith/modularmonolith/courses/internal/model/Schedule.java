@@ -1,6 +1,5 @@
 package com.monolith.modularmonolith.courses.internal.model;
 
-import com.monolith.modularmonolith.users.internal.model.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -33,9 +32,8 @@ public class Schedule {
     @JoinColumn(name = "classroom_id")
     private Classroom classroom;
 
-    @ManyToOne(optional = false, fetch = FetchType.EAGER)
-    @JoinColumn(name = "teacher_id")
-    private User teacher;
+    @Column(name = "teacher_id", nullable = false)
+    private Long teacherId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

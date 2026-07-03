@@ -1,6 +1,5 @@
 package com.monolith.modularmonolith.courses.internal.model;
 
-import com.monolith.modularmonolith.users.internal.model.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -35,27 +34,20 @@ public class Classroom {
     @Builder.Default
     private Boolean active = true;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "homeroom_teacher_id")
-    private User homeroomTeacher;
+    @Column(name = "homeroom_teacher_id")
+    private Long homeroomTeacherId;
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "classroom_students",
-            joinColumns = @JoinColumn(name = "classroom_id"),
-            inverseJoinColumns = @JoinColumn(name = "student_id")
-    )
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "classroom_student_ids", joinColumns = @JoinColumn(name = "classroom_id"))
+    @Column(name = "student_id")
     @Builder.Default
-    private Set<User> students = new HashSet<>();
+    private Set<Long> studentIds = new HashSet<>();
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "classroom_courses",
-            joinColumns = @JoinColumn(name = "classroom_id"),
-            inverseJoinColumns = @JoinColumn(name = "course_id")
-    )
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "classroom_course_ids", joinColumns = @JoinColumn(name = "classroom_id"))
+    @Column(name = "course_id")
     @Builder.Default
-    private Set<Course> courses = new HashSet<>();
+    private Set<Long> courseIds = new HashSet<>();
 
     @OneToMany(mappedBy = "classroom", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
