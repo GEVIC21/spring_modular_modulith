@@ -118,4 +118,27 @@ public class GlobalExceptionHandler {
         );
         return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+    @ExceptionHandler(FileStorageException.class)
+    public ResponseEntity<ErrorResponse> handleFileStorageException(FileStorageException ex, HttpServletRequest request) {
+        log.error("Erreur de stockage fichier sur {} : {}", request.getRequestURI(), ex.getMessage());
+        ErrorResponse errorResponse = ErrorResponse.of(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Erreur lors du traitement du fichier : " + ex.getMessage(),
+                request.getRequestURI(),
+                null
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(InvalidFileException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidFileException(InvalidFileException ex, HttpServletRequest request) {
+        log.warn("Fichier invalide sur {} : {}", request.getRequestURI(), ex.getMessage());
+        ErrorResponse errorResponse = ErrorResponse.of(
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage(),
+                request.getRequestURI(),
+                null
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
 }

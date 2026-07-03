@@ -11,6 +11,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "users")
@@ -33,9 +34,11 @@ public class User implements UserDetails {
     private String password;
 
     @Column(name = "avatar_url")
-    private String avatarUrl; // Chemin relatif du fichier stocké, null = avatar par défau
+    private String avatarUrl;
 
-    // Un utilisateur peut avoir plusieurs rôles dynamiques
+    @Column(name = "is_active", nullable = false)
+    private boolean active = true;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "users_roles",
@@ -49,16 +52,14 @@ public class User implements UserDetails {
         this.email = email;
         this.password = password;
         this.roles = roles;
+        this.active = true;
     }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         Set<GrantedAuthority> authorities = new HashSet<>();
         for (Role role : roles) {
-            // 1. On injecte le Rôle (Optionnel, mais utile pour la traçabilité)
             authorities.add(new SimpleGrantedAuthority(role.getName()));
-
-            // 2. On injecte toutes les permissions associées à ce rôle
             for (Permission p : role.getPermissions()) {
                 authorities.add(new SimpleGrantedAuthority(p.getName()));
             }
@@ -66,11 +67,33 @@ public class User implements UserDetails {
         return authorities;
     }
 
+    // Helpers pour vérifier les rôles
+    public boolean hasRole(String roleName) {
+        return roles.stream().anyMatch(r -> r.getName().equals(roleName));
+    }
+
+    public boolean hasPermission(String permissionName) {
+        return roles.stream()
+                .flatMap(r -> r.getPermissions().stream())
+                .anyMatch(p -> p.getName().equals(permissionName));
+    }
+
+    public Set<String> getRoleNames() {
+        return roles.stream().map(Role::getName).collect(Collectors.toSet());
+    }
+
+    public Set<String> getPermissionNames() {
+        return roles.stream()
+                .flatMap(r -> r.getPermissions().stream())
+                .map(Permission::getName)
+                .collect(Collectors.toSet());
+    }
+
     @Override public String getPassword() { return this.password; }
-    @Override public String getUsername() { return this.email; } // Authentification par email
-    public String getPublicUsername() { return this.username; } // Pseudo affichage public
+    @Override public String getUsername() { return this.email; }
+    public String getPublicUsername() { return this.username; }
     @Override public boolean isAccountNonExpired() { return true; }
     @Override public boolean isAccountNonLocked() { return true; }
     @Override public boolean isCredentialsNonExpired() { return true; }
-    @Override public boolean isEnabled() { return true; }
+    @Override public boolean isEnabled() { return this.active; }
 }

@@ -19,7 +19,7 @@ public class Role {
     private Long id;
 
     @Column(unique = true, nullable = false)
-    private String name; // Ex: "ROLE_ADMIN", "ROLE_TEACHER", "ROLE_ASSURANCE_AGENT"
+    private String name;
 
     private String description;
 

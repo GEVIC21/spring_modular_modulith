@@ -17,7 +17,7 @@ public class Permission {
     private Long id;
 
     @Column(unique = true, nullable = false)
-    private String name; // Ex: "document:create", "user:delete", "invoice:pay"
+    private String name;
 
     private String description;
 

@@ -1,4 +1,4 @@
-package com.monolith.modularmonolith.users.internal.dto;
+package com.monolith.modularmonolith.users.internal.dto.response;
 
 public record AuthResponse(
         String token,

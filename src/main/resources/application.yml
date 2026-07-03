@@ -31,3 +31,6 @@ app:
       expiration-ms: 86400000
   upload:
     dir: uploads/avatars  # Répertoire de stockage des photos
+
+  file:
+    upload-dir: ./uploads/profiles

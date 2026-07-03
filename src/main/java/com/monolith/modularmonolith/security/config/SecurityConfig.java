@@ -1,10 +1,12 @@
 package com.monolith.modularmonolith.security.config;
 
-import  com.monolith.modularmonolith.security.jwt.JwtAuthenticationFilter; // Filtre personnalisé à créer si nécessaire
+import com.monolith.modularmonolith.security.jwt.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -16,11 +18,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    // Injection par constructeur du filtre JWT
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
@@ -28,23 +30,31 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Désactivation du CSRF car nous utilisons des tokens stateless (JWT)
                 .csrf(AbstractHttpConfigurer::disable)
-
-                // Gestion de session Stateless
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-
-                // Configuration des règles d'accès aux URLs
                 .authorizeHttpRequests(auth -> auth
-                        // Endpoints d'authentification publics (déclarés dans votre sous-package internal)
+                        // Auth public
                         .requestMatchers("/api/v1/auth/**").permitAll()
-                        // Tout le reste nécessite une authentification
+                        .requestMatchers("/api/v1/public/**").permitAll()
+
+                        // Uploads d'images (avatars)
+                        .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
+
+                        // Admin uniquement
+                        .requestMatchers("/api/v1/admin/**").hasAnyRole("SUPERADMIN", "ADMIN")
+
+                        // Enseignant peut voir élèves mais pas tout admin
+                        .requestMatchers(HttpMethod.GET, "/api/v1/admin/students/**").hasAnyRole("SUPERADMIN", "ADMIN", "ENSEIGNANT")
+
+                        // Profil personnel (tous les utilisateurs authentifiés)
+                        .requestMatchers("/api/v1/users/profile/**").authenticated()
+                        .requestMatchers("/api/v1/users/password/**").authenticated()
+
+                        // Tout le reste nécessite authentification
                         .anyRequest().authenticated()
                 )
-
-                // Ajout du filtre JWT avant le filtre d'authentification standard de Spring Security
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -52,7 +62,6 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        // Utilisation de BCrypt pour le hachage sécurisé des mots de passe
         return new BCryptPasswordEncoder();
     }
 
