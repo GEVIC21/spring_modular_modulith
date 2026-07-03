@@ -28,6 +28,7 @@ public class ReportCardService {
     private final ReportCardRepository reportCardRepository;
     private final GradeRepository gradeRepository;
     private final UserLookup userLookup;
+    private final JasperReportService jasperReportService;
 
     @Transactional
     public ReportCardResponse generateReportCard(ReportCardRequest request, String generatedByEmail) {
@@ -133,6 +134,14 @@ public class ReportCardService {
             recalculateRanks(reportCard.getClassroomId(), reportCard.getAcademicYear(), reportCard.getSemester());
         }
         log.info("Bulletin supprimé (soft) : id={}", id);
+    }
+
+    /**
+     * Génère le PDF d'un bulletin existant.
+     */
+    public byte[] generateBulletinPdf(Long reportCardId, String schoolName, String schoolLogoPath) {
+        ReportCardResponse reportCard = getReportCardById(reportCardId);
+        return jasperReportService.generateBulletinPdf(reportCard, schoolName, schoolLogoPath);
     }
 
     // --- Helpers ---

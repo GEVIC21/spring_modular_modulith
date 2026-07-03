@@ -5,7 +5,7 @@ import com.monolith.modularmonolith.grades.internal.dto.ReportCardResponse;
 import com.monolith.modularmonolith.grades.internal.service.ReportCardService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -59,5 +59,19 @@ public class ReportCardController {
     public ResponseEntity<Void> deleteReportCard(@PathVariable Long id) {
         reportCardService.deleteReportCard(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/pdf")
+    @PreAuthorize("hasAuthority('student:grades:read')")
+    public ResponseEntity<byte[]> downloadBulletinPdf(@PathVariable Long id) {
+        byte[] pdfBytes = reportCardService.generateBulletinPdf(id, "Lycée International", "static/images/logo.png");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(ContentDisposition.attachment()
+                .filename("bulletin_" + id + ".pdf")
+                .build());
+
+        return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
     }
 }
