@@ -16,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import static com.monolith.modularmonolith.users.internal.model.SchoolConstants.*;
 
@@ -42,12 +41,13 @@ public class SchoolDataInitializer implements CommandLineRunner {
 
         log.info("=== INITIALISATION SCHOOL MANAGEMENT SYSTEM ===");
 
-        // ========== PERMISSIONS ==========
+        // ========== PERMISSIONS (toutes dans une seule liste) ==========
         List<String[]> perms = Arrays.asList(
                 new String[]{USER_CREATE, "Créer un utilisateur"},
                 new String[]{USER_READ, "Lire un utilisateur"},
                 new String[]{USER_UPDATE, "Modifier un utilisateur"},
                 new String[]{USER_DELETE, "Supprimer un utilisateur"},
+
                 new String[]{STUDENT_CREATE, "Créer un élève"},
                 new String[]{STUDENT_READ, "Lire un élève"},
                 new String[]{STUDENT_UPDATE, "Modifier un élève"},
@@ -56,26 +56,40 @@ public class SchoolDataInitializer implements CommandLineRunner {
                 new String[]{STUDENT_GRADES_WRITE, "Modifier les notes"},
                 new String[]{STUDENT_ATTENDANCE_READ, "Lire l'assiduité"},
                 new String[]{STUDENT_ATTENDANCE_WRITE, "Modifier l'assiduité"},
+
                 new String[]{TEACHER_CREATE, "Créer un enseignant"},
                 new String[]{TEACHER_READ, "Lire un enseignant"},
                 new String[]{TEACHER_UPDATE, "Modifier un enseignant"},
                 new String[]{TEACHER_DELETE, "Supprimer un enseignant"},
                 new String[]{TEACHER_COURSES_MANAGE, "Gérer les cours"},
                 new String[]{TEACHER_GRADES_MANAGE, "Gérer les notes"},
+
                 new String[]{COURSE_CREATE, "Créer un cours"},
                 new String[]{COURSE_READ, "Lire un cours"},
                 new String[]{COURSE_UPDATE, "Modifier un cours"},
                 new String[]{COURSE_DELETE, "Supprimer un cours"},
+
                 new String[]{CLASS_MANAGE, "Gérer les classes"},
+
                 new String[]{FINANCE_READ, "Lire les finances"},
                 new String[]{FINANCE_WRITE, "Modifier les finances"},
+
                 new String[]{REPORTS_READ, "Lire les rapports"},
                 new String[]{REPORTS_WRITE, "Créer des rapports"},
+
                 new String[]{SETTINGS_MANAGE, "Gérer les paramètres"},
+
                 new String[]{ANNOUNCEMENT_CREATE, "Créer une annonce"},
                 new String[]{ANNOUNCEMENT_READ, "Lire les annonces"},
+
                 new String[]{PROFILE_READ, "Lire son profil"},
-                new String[]{PROFILE_WRITE, "Modifier son profil"}
+                new String[]{PROFILE_WRITE, "Modifier son profil"},
+
+                // Permissions Emploi du temps (module Cours/Classes)
+                new String[]{SCHEDULE_CREATE, "Créer un emploi du temps"},
+                new String[]{SCHEDULE_READ, "Lire un emploi du temps"},
+                new String[]{SCHEDULE_UPDATE, "Modifier un emploi du temps"},
+                new String[]{SCHEDULE_DELETE, "Supprimer un emploi du temps"}
         );
 
         for (String[] p : perms) {
@@ -84,30 +98,31 @@ public class SchoolDataInitializer implements CommandLineRunner {
 
         // ========== RÔLES ==========
 
-        // SUPERADMIN : TOUT
+        // SUPERADMIN : TOUTES les permissions
         Role superAdminRole = createRole(ROLE_SUPERADMIN, "Super Administrateur - Accès total");
         superAdminRole.setPermissions(new HashSet<>(permissionRepository.findAll()));
         roleRepository.save(superAdminRole);
 
-        // ADMIN : Gestion école sauf superadmin
+        // ADMIN : Gestion complète sauf superadmin
         Role adminRole = createRole(ROLE_ADMIN, "Administrateur de l'établissement");
         adminRole.setPermissions(new HashSet<>(List.of(
-                perm(USER_CREATE), perm(USER_READ), perm(USER_UPDATE),
+                perm(USER_CREATE), perm(USER_READ), perm(USER_UPDATE), perm(USER_DELETE),
                 perm(STUDENT_CREATE), perm(STUDENT_READ), perm(STUDENT_UPDATE), perm(STUDENT_DELETE),
                 perm(STUDENT_GRADES_READ), perm(STUDENT_GRADES_WRITE),
                 perm(STUDENT_ATTENDANCE_READ), perm(STUDENT_ATTENDANCE_WRITE),
-                perm(TEACHER_CREATE), perm(TEACHER_READ), perm(TEACHER_UPDATE),
+                perm(TEACHER_CREATE), perm(TEACHER_READ), perm(TEACHER_UPDATE), perm(TEACHER_DELETE),
                 perm(TEACHER_COURSES_MANAGE), perm(TEACHER_GRADES_MANAGE),
                 perm(COURSE_CREATE), perm(COURSE_READ), perm(COURSE_UPDATE), perm(COURSE_DELETE),
                 perm(CLASS_MANAGE),
                 perm(FINANCE_READ), perm(FINANCE_WRITE),
                 perm(REPORTS_READ), perm(REPORTS_WRITE),
                 perm(ANNOUNCEMENT_CREATE), perm(ANNOUNCEMENT_READ),
-                perm(PROFILE_READ), perm(PROFILE_WRITE)
+                perm(PROFILE_READ), perm(PROFILE_WRITE),
+                perm(SCHEDULE_CREATE), perm(SCHEDULE_READ), perm(SCHEDULE_UPDATE), perm(SCHEDULE_DELETE)
         )));
         roleRepository.save(adminRole);
 
-        // ENSEIGNANT : Cours, notes, assiduité, profil
+        // ENSEIGNANT : Cours, notes, assiduité, profil, emploi du temps (lecture)
         Role teacherRole = createRole(ROLE_ENSEIGNANT, "Enseignant");
         teacherRole.setPermissions(new HashSet<>(List.of(
                 perm(STUDENT_READ),
@@ -117,18 +132,20 @@ public class SchoolDataInitializer implements CommandLineRunner {
                 perm(TEACHER_COURSES_MANAGE), perm(TEACHER_GRADES_MANAGE),
                 perm(COURSE_READ), perm(COURSE_UPDATE),
                 perm(ANNOUNCEMENT_READ),
-                perm(PROFILE_READ), perm(PROFILE_WRITE)
+                perm(PROFILE_READ), perm(PROFILE_WRITE),
+                perm(SCHEDULE_READ)
         )));
         roleRepository.save(teacherRole);
 
-        // ELEVE : Lecture seule + profil
+        // ELEVE : Lecture seule + profil + emploi du temps (lecture)
         Role studentRole = createRole(ROLE_ELEVE, "Élève");
         studentRole.setPermissions(new HashSet<>(List.of(
                 perm(STUDENT_GRADES_READ),
                 perm(STUDENT_ATTENDANCE_READ),
                 perm(COURSE_READ),
                 perm(ANNOUNCEMENT_READ),
-                perm(PROFILE_READ), perm(PROFILE_WRITE)
+                perm(PROFILE_READ), perm(PROFILE_WRITE),
+                perm(SCHEDULE_READ)
         )));
         roleRepository.save(studentRole);
 
@@ -206,7 +223,6 @@ public class SchoolDataInitializer implements CommandLineRunner {
 
     private Role createRole(String name, String description) {
         return roleRepository.findByName(name)
-
                 .orElseGet(() -> roleRepository.save(new Role(name, description)));
     }
 
