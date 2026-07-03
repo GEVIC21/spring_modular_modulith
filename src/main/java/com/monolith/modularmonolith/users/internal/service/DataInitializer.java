@@ -37,6 +37,9 @@ public class DataInitializer implements CommandLineRunner {
             Permission readPerm = createPermissionIfNotFound("document:read", "Autorise la lecture des ressources");
             Permission writePerm = createPermissionIfNotFound("document:write", "Autorise la création/modification");
             Permission deletePerm = createPermissionIfNotFound("document:delete", "Autorise la suppression critique");
+            //Profile
+            Permission profileRead = createPermissionIfNotFound("profile:read", "Autorise la lecture de son propre profil");
+            Permission profileWrite = createPermissionIfNotFound("profile:write", "Autorise la modification de son propre profil");
 
             // 2. Création et configuration du Rôle Utilisateur Standard (ROLE_USER)
             Role userRole = new Role("ROLE_USER", "Rôle utilisateur standard pour les clients ou élèves");

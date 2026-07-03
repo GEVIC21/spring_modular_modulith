@@ -32,6 +32,9 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
+    @Column(name = "avatar_url")
+    private String avatarUrl; // Chemin relatif du fichier stocké, null = avatar par défau
+
     // Un utilisateur peut avoir plusieurs rôles dynamiques
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
