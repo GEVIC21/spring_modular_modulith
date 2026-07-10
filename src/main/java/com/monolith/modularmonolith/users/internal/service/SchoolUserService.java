@@ -3,6 +3,7 @@ package com.monolith.modularmonolith.users.internal.service;
 import com.monolith.modularmonolith.users.internal.dto.request.RoleAssignmentRequest;
 import com.monolith.modularmonolith.users.internal.dto.request.StudentRegisterRequest;
 import com.monolith.modularmonolith.users.internal.dto.request.TeacherRegisterRequest;
+import com.monolith.modularmonolith.users.internal.dto.response.MeResponse;
 import com.monolith.modularmonolith.users.internal.dto.response.StudentProfileResponse;
 import com.monolith.modularmonolith.users.internal.dto.response.TeacherProfileResponse;
 import com.monolith.modularmonolith.users.internal.dto.response.UserListResponse;
@@ -31,7 +32,6 @@ public class SchoolUserService {
     private final TeacherProfileRepository teacherProfileRepository;
     private final PasswordEncoder passwordEncoder;
     private final AvatarService avatarService;
-
 
     // ==================== INSCRIPTION ÉLÈVE ====================
 
@@ -189,7 +189,6 @@ public class SchoolUserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Utilisateur non trouvé"));
 
-        // Supprimer les profils associés d'abord
         studentProfileRepository.findByUserEmail(user.getUsername())
                 .ifPresent(studentProfileRepository::delete);
         teacherProfileRepository.findByUserEmail(user.getUsername())
@@ -198,28 +197,68 @@ public class SchoolUserService {
         userRepository.delete(user);
     }
 
-    // ==================== PROFIL CONNECTÉ ====================
+    // ==================== PROFIL CONNECTÉ (/me) ====================
 
     @Transactional(readOnly = true)
-    public Object getMyProfile(String email) {
+    public MeResponse getMyProfile(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Utilisateur non trouvé"));
 
+        MeResponse.StudentInfo student = null;
+        MeResponse.TeacherInfo teacher = null;
+        String profileType;
+
         if (user.hasRole(ROLE_ELEVE)) {
-            return getStudentByEmail(email);
-        } else if (user.hasRole(ROLE_ENSEIGNANT)) {
-            return getTeacherByEmail(email);
-        } else {
-            // Admin / SuperAdmin → profil basique
-            return new UserListResponse(
-                    user.getId(),
-                    user.getPublicUsername(),
-                    user.getEmail(),
-                    user.isActive(),
-                    user.getRoleNames(),
-                    user.hasRole(ROLE_SUPERADMIN) ? "SUPERADMIN" : "ADMIN"
+            profileType = "STUDENT";
+            StudentProfile sp = studentProfileRepository.findByUserEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Profil élève non trouvé"));
+            student = new MeResponse.StudentInfo(
+                    sp.getStudentId(),
+                    sp.getRegistrationNumber(),
+                    sp.getGradeLevel(),
+                    sp.getClassName(),
+                    sp.getSection(),
+                    sp.getAcademicYear(),
+                    sp.getBirthDate(),
+                    sp.getParentName(),
+                    sp.getParentPhone(),
+                    sp.getParentEmail(),
+                    sp.getEmergencyContact(),
+                    sp.getAddress(),
+                    sp.getEnrollmentDate(),
+                    sp.isScholarship()
             );
+        } else if (user.hasRole(ROLE_ENSEIGNANT)) {
+            profileType = "TEACHER";
+            TeacherProfile tp = teacherProfileRepository.findByUserEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Profil enseignant non trouvé"));
+            teacher = new MeResponse.TeacherInfo(
+                    tp.getTeacherId(),
+                    tp.getDepartment(),
+                    tp.getSpecialization(),
+                    tp.getSubjects(),
+                    tp.getHireDate(),
+                    tp.getQualification(),
+                    tp.getPhone(),
+                    tp.getOfficeLocation(),
+                    tp.getBio(),
+                    tp.isTenured()
+            );
+        } else {
+            profileType = user.hasRole(ROLE_SUPERADMIN) ? "SUPERADMIN" : "ADMIN";
         }
+
+        return new MeResponse(
+                user.getId(),
+                user.getPublicUsername(),
+                user.getEmail(),
+                user.isActive(),
+                user.getRoleNames(),
+                profileType,
+                resolveAvatarUrl(user.getAvatarUrl()),
+                student,
+                teacher
+        );
     }
 
     // ==================== GESTION AVATAR ====================
@@ -229,7 +268,6 @@ public class SchoolUserService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Utilisateur non trouvé"));
 
-        // Supprimer l'ancien avatar si existe
         if (user.getAvatarUrl() != null) {
             avatarService.deleteFile(user.getAvatarUrl());
         }
@@ -258,14 +296,14 @@ public class SchoolUserService {
                 .orElseThrow(() -> new IllegalArgumentException("Aucun avatar défini pour cet utilisateur"));
     }
 
-    // ==================== MAPPERS ====================
+    // ==================== MAPPERS PRIVÉS ====================
 
     private StudentProfileResponse mapToStudentResponse(User user, StudentProfile profile) {
         return new StudentProfileResponse(
                 user.getId(),
                 user.getPublicUsername(),
                 user.getUsername(),
-                user.getAvatarUrl(),
+                resolveAvatarUrl(user.getAvatarUrl()),
                 user.isActive(),
                 user.getRoleNames(),
                 user.getPermissionNames(),
@@ -291,7 +329,7 @@ public class SchoolUserService {
                 user.getId(),
                 user.getPublicUsername(),
                 user.getUsername(),
-                user.getAvatarUrl(),
+                resolveAvatarUrl(user.getAvatarUrl()),
                 user.isActive(),
                 user.getRoleNames(),
                 user.getPermissionNames(),
@@ -318,12 +356,21 @@ public class SchoolUserService {
         return new UserListResponse(
                 user.getId(),
                 user.getPublicUsername(),
-                user.getUsername(),
+                user.getEmail(),
                 user.isActive(),
                 user.getRoleNames(),
-                profileType
+                profileType,
+                resolveAvatarUrl(user.getAvatarUrl())
         );
     }
 
-
+    /**
+     * Transforme le filename brut stocké en DB en URL HTTP utilisable par le frontend.
+     * Ex: "avatar_abc123.jpg" → "/uploads/profiles/avatar_abc123.jpg"
+     */
+    private String resolveAvatarUrl(String filename) {
+        return (filename != null && !filename.isBlank())
+                ? "/uploads/profiles/" + filename
+                : null;
+    }
 }

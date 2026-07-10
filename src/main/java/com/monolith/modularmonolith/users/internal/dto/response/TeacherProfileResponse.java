@@ -4,14 +4,13 @@ import java.time.LocalDate;
 import java.util.Set;
 
 public record TeacherProfileResponse(
-        Long userId,
+        Long id,
         String username,
         String email,
         String avatarUrl,
         boolean active,
         Set<String> roles,
         Set<String> permissions,
-
         String teacherId,
         String department,
         String specialization,

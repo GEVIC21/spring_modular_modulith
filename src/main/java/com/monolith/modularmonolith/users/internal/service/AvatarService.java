@@ -5,6 +5,7 @@ import com.monolith.modularmonolith.security.exception.FileStorageException;
 import com.monolith.modularmonolith.security.exception.InvalidFileException;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -62,7 +63,6 @@ public class AvatarService {
         try {
             Path filePath = this.uploadDir.resolve(filename).normalize();
 
-            // Sécurité : vérifier que le fichier reste dans le répertoire autorisé
             if (!filePath.startsWith(this.uploadDir)) {
                 throw new FileStorageException("Chemin de fichier non autorisé: " + filename);
             }
@@ -93,6 +93,18 @@ public class AvatarService {
 
     public String getFileUrl(String filename) {
         return "/uploads/profiles/" + filename;
+    }
+
+    /**
+     * Détecte le content-type selon l'extension du fichier.
+     */
+    public String resolveContentType(String filename) {
+        if (filename == null) return MediaType.IMAGE_JPEG_VALUE;
+        String lower = filename.toLowerCase();
+        if (lower.endsWith(".png")) return MediaType.IMAGE_PNG_VALUE;
+        if (lower.endsWith(".gif")) return MediaType.IMAGE_GIF_VALUE;
+        if (lower.endsWith(".webp")) return "image/webp";
+        return MediaType.IMAGE_JPEG_VALUE;
     }
 
     private void validateFile(MultipartFile file) {

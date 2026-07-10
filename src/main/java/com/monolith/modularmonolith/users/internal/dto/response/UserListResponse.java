@@ -8,5 +8,6 @@ public record UserListResponse(
         String email,
         boolean active,
         Set<String> roles,
-        String profileType
+        String profileType,
+        String avatarUrl
 ) {}

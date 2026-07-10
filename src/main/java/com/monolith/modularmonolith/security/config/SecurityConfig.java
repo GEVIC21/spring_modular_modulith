@@ -24,7 +24,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -36,69 +36,25 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // ⬇️ CORS activé AVANT tout le reste
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
-                        // Auth public
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/public/**").permitAll()
-
-                        // Uploads d'images (avatars)
-                        .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
-
-                        // Admin uniquement
+                        .requestMatchers(HttpMethod.GET, "/uploads/profiles/**").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasAnyRole("SUPERADMIN", "ADMIN")
-
-                        // Enseignant peut voir élèves mais pas tout admin
-                        .requestMatchers(HttpMethod.GET, "/api/v1/admin/students/**").hasAnyRole("SUPERADMIN", "ADMIN", "ENSEIGNANT")
-
-                        // Profil personnel (tous les utilisateurs authentifiés)
-                        .requestMatchers("/api/v1/users/profile/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/admin/students/**")
+                        .hasAnyRole("SUPERADMIN", "ADMIN", "ENSEIGNANT")
+                        .requestMatchers("/api/v1/users/me/**").authenticated()
                         .requestMatchers("/api/v1/users/password/**").authenticated()
-
-                        // Tout le reste nécessite authentification
                         .anyRequest().authenticated()
-                )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                );
 
         return http.build();
-    }
-
-    /**
-     * Configuration CORS pour le frontend Angular (localhost:4200).
-     * En production, remplace l'origine par ton domaine déployé.
-     */
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-
-        // Origine(s) autorisée(s)
-        // ⚠️ Avec allowCredentials=true, on ne peut PAS utiliser "*" pour allowedOrigins
-        configuration.setAllowedOrigins(List.of("http://localhost:4200"));
-
-        // Si tu as besoin de plusieurs origines dynamiques (dev + staging + prod),
-        // remplace par :
-        // configuration.setAllowedOriginPatterns(List.of("http://localhost:*", "https://*.ecole.fr"));
-
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(List.of(
-                "Authorization",
-                "Content-Type",
-                "Accept",
-                "Origin",
-                "X-Requested-With"
-        ));
-        configuration.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
-        configuration.setAllowCredentials(true); // Indispensable pour envoyer le JWT en header ou cookies
-        configuration.setMaxAge(3600L); // Cache le preflight pendant 1h
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
     }
 
     @Bean
@@ -109,5 +65,22 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
         return configuration.getAuthenticationManager();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("http://localhost:4200"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedHeaders(List.of(
+                "Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"
+        ));
+        configuration.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }
