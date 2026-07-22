@@ -1,10 +1,7 @@
 package com.monolith.modularmonolith.users.internal.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.util.HashSet;
@@ -23,38 +20,71 @@ public class TeacherProfile {
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
-    private User user;
+    @JoinColumn(name = "user_id", nullable = false)
+    private SchoolUser user;
 
-    @Column(name = "teacher_id", unique = true, nullable = false)
+    @Column(name = "teacher_id", unique = true, length = 20)
     private String teacherId;
 
-    @Column(name = "department")
+    @Column(name = "employee_id", unique = true, length = 20)
+    private String employeeId;
+
+    @Column(length = 100)
     private String department;
 
-    @Column(name = "specialization")
+    @Column(length = 100)
     private String specialization;
 
     @ElementCollection
     @CollectionTable(name = "teacher_subjects", joinColumns = @JoinColumn(name = "teacher_profile_id"))
     @Column(name = "subject")
+    @Builder.Default
     private Set<String> subjects = new HashSet<>();
+
+    @ElementCollection
+    @CollectionTable(name = "teacher_classes", joinColumns = @JoinColumn(name = "teacher_profile_id"))
+    @Column(name = "class_name")
+    @Builder.Default
+    private Set<String> classesAssigned = new HashSet<>();
 
     @Column(name = "hire_date")
     private LocalDate hireDate;
 
-    @Column(name = "qualification")
+    @Column(name = "contract_end_date")
+    private LocalDate contractEndDate;
+
+    @Column(name = "contract_type", length = 20)
+    private String contractType; // CDI, CDD, VACATAIRE
+
+    @Column(length = 100)
     private String qualification;
 
-    @Column(name = "phone")
+    @Column(length = 500)
+    private String certifications;
+
+    @Column(length = 20)
     private String phone;
 
-    @Column(name = "office_location")
+    @Column(name = "office_location", length = 100)
     private String officeLocation;
 
-    @Column(name = "bio", length = 2000)
+    @Column(name = "office_hours", length = 100)
+    private String officeHours;
+
+    @Column(length = 1000)
     private String bio;
 
-    @Column(name = "is_tenured")
+    @Column(name = "research_interests", length = 500)
+    private String researchInterests;
+
+    @Column(name = "years_of_experience")
+    private Integer yearsOfExperience;
+
+    @Column(nullable = false)
+    @Builder.Default
     private boolean tenured = false;
+
+    @Column(name = "department_head", nullable = false)
+    @Builder.Default
+    private boolean departmentHead = false;
 }

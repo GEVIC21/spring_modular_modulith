@@ -1,4 +1,4 @@
-package com.monolith.modularmonolith.users.internal.service;
+package com.monolith.modularmonolith.auth.internal.service;
 
 import com.monolith.modularmonolith.users.internal.model.User;
 import com.monolith.modularmonolith.users.internal.repository.UserRepository;

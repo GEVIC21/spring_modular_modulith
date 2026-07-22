@@ -1,7 +1,7 @@
-package com.monolith.modularmonolith.users.internal.controller;
+package com.monolith.modularmonolith.auth.internal.controller;
 
 import com.monolith.modularmonolith.users.internal.dto.request.PasswordChangeRequest;
-import com.monolith.modularmonolith.users.internal.service.PasswordService;
+import com.monolith.modularmonolith.auth.internal.service.PasswordService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

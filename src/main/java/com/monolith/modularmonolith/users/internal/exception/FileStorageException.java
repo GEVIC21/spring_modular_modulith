@@ -1,4 +1,4 @@
-package com.monolith.modularmonolith.security.exception;
+package com.monolith.modularmonolith.users.internal.exception;
 
 public class FileStorageException extends RuntimeException {
     public FileStorageException(String message) {

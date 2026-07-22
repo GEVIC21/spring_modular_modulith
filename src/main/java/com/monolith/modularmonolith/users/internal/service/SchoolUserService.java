@@ -1,376 +1,62 @@
 package com.monolith.modularmonolith.users.internal.service;
 
-import com.monolith.modularmonolith.users.internal.dto.request.RoleAssignmentRequest;
-import com.monolith.modularmonolith.users.internal.dto.request.StudentRegisterRequest;
-import com.monolith.modularmonolith.users.internal.dto.request.TeacherRegisterRequest;
-import com.monolith.modularmonolith.users.internal.dto.response.MeResponse;
-import com.monolith.modularmonolith.users.internal.dto.response.StudentProfileResponse;
-import com.monolith.modularmonolith.users.internal.dto.response.TeacherProfileResponse;
-import com.monolith.modularmonolith.users.internal.dto.response.UserListResponse;
-import com.monolith.modularmonolith.users.internal.model.*;
-import com.monolith.modularmonolith.users.internal.repository.*;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.monolith.modularmonolith.users.internal.dto.request.*;
+import com.monolith.modularmonolith.users.internal.dto.response.*;
+import org.springframework.data.domain.Page;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
-import static com.monolith.modularmonolith.users.internal.model.SchoolConstants.*;
+public interface SchoolUserService {
 
-@Service
-@RequiredArgsConstructor
-public class SchoolUserService {
+    // ========== PROFIL CONNECTÉ (/me) ==========
+    MeResponse getMyProfile(String email);
 
-    private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
-    private final StudentProfileRepository studentProfileRepository;
-    private final TeacherProfileRepository teacherProfileRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final AvatarService avatarService;
+    MeResponse updateStudentProfile(String email, UpdateStudentProfileRequest request);
 
-    // ==================== INSCRIPTION ÉLÈVE ====================
+    MeResponse updateTeacherProfile(String email, UpdateTeacherProfileRequest request);
 
-    @Transactional
-    public StudentProfileResponse registerStudent(StudentRegisterRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
-            throw new IllegalArgumentException("Cet email est déjà utilisé.");
-        }
-        if (userRepository.existsByUsername(request.username())) {
-            throw new IllegalArgumentException("Ce nom d'utilisateur est déjà pris.");
-        }
-        if (studentProfileRepository.existsByStudentId(request.studentId())) {
-            throw new IllegalArgumentException("Cet ID étudiant existe déjà.");
-        }
+    MeResponse updateAdminProfile(String email, UpdateAdminProfileRequest request);
 
-        Role studentRole = roleRepository.findByName(ROLE_ELEVE)
-                .orElseThrow(() -> new IllegalStateException("Rôle ELEVE non configuré"));
+    // ========== CRÉATION PAR ADMIN ==========
+    MeResponse createStudent(StudentCreateRequest request);
 
-        User user = new User(
-                request.username(),
-                request.email(),
-                passwordEncoder.encode(request.password()),
-                new HashSet<>(Collections.singletonList(studentRole))
-        );
-        user = userRepository.save(user);
+    MeResponse createTeacher(TeacherCreateRequest request);
 
-        StudentProfile profile = StudentProfile.builder()
-                .user(user)
-                .studentId(request.studentId())
-                .registrationNumber(request.registrationNumber())
-                .gradeLevel(request.gradeLevel())
-                .className(request.className())
-                .section(request.section())
-                .academicYear(request.academicYear())
-                .birthDate(request.birthDate())
-                .parentName(request.parentName())
-                .parentPhone(request.parentPhone())
-                .parentEmail(request.parentEmail())
-                .emergencyContact(request.emergencyContact())
-                .address(request.address())
-                .enrollmentDate(request.enrollmentDate() != null ? request.enrollmentDate() : java.time.LocalDate.now())
-                .scholarship(request.scholarship())
-                .build();
+    MeResponse createAdmin(AdminCreateRequest request);
 
-        studentProfileRepository.save(profile);
+    BulkCreationResponse createStudentsBulk(MultipartFile file);
 
-        return mapToStudentResponse(user, profile);
-    }
+    // ========== LECTURE ==========
+    MeResponse getProfileById(Long userId);
 
-    // ==================== INSCRIPTION ENSEIGNANT ====================
+    Page<UserProfileSummaryResponse> listUsers(int page, int size, String profileType, String search, Boolean active);
 
-    @Transactional
-    public TeacherProfileResponse registerTeacher(TeacherRegisterRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
-            throw new IllegalArgumentException("Cet email est déjà utilisé.");
-        }
-        if (userRepository.existsByUsername(request.username())) {
-            throw new IllegalArgumentException("Ce nom d'utilisateur est déjà pris.");
-        }
-        if (teacherProfileRepository.existsByTeacherId(request.teacherId())) {
-            throw new IllegalArgumentException("Cet ID enseignant existe déjà.");
-        }
+    List<UserProfileSummaryResponse> searchUsers(String firstName, String lastName, String email,
+                                                 String studentId, String teacherId, String gradeLevel, String department);
 
-        Role teacherRole = roleRepository.findByName(ROLE_ENSEIGNANT)
-                .orElseThrow(() -> new IllegalStateException("Rôle ENSEIGNANT non configuré"));
+    UserStatsResponse getUserStats();
 
-        User user = new User(
-                request.username(),
-                request.email(),
-                passwordEncoder.encode(request.password()),
-                new HashSet<>(Collections.singletonList(teacherRole))
-        );
-        user = userRepository.save(user);
+    // ========== MISE À JOUR PAR ADMIN ==========
+    MeResponse updateStudentByAdmin(Long userId, StudentCreateRequest request);
 
-        TeacherProfile profile = TeacherProfile.builder()
-                .user(user)
-                .teacherId(request.teacherId())
-                .department(request.department())
-                .specialization(request.specialization())
-                .subjects(request.subjects() != null ? request.subjects() : new HashSet<>())
-                .hireDate(request.hireDate())
-                .qualification(request.qualification())
-                .phone(request.phone())
-                .officeLocation(request.officeLocation())
-                .bio(request.bio())
-                .tenured(request.tenured())
-                .build();
+    MeResponse updateTeacherByAdmin(Long userId, TeacherCreateRequest request);
 
-        teacherProfileRepository.save(profile);
+    MeResponse patchUser(Long userId, UserPatchRequest request);
 
-        return mapToTeacherResponse(user, profile);
-    }
+    // ========== GESTION DES COMPTES ==========
+    void deactivateUser(Long userId);
 
-    // ==================== CRUD UTILISATEURS (ADMIN) ====================
+    void activateUser(Long userId);
 
-    @Transactional(readOnly = true)
-    public List<UserListResponse> listAllUsers() {
-        return userRepository.findAll().stream()
-                .map(this::mapToUserList)
-                .collect(Collectors.toList());
-    }
+    PasswordResetResponse resetPassword(Long userId);
 
-    @Transactional(readOnly = true)
-    public List<UserListResponse> listUsersByRole(String roleName) {
-        return userRepository.findAll().stream()
-                .filter(u -> u.hasRole(roleName))
-                .map(this::mapToUserList)
-                .collect(Collectors.toList());
-    }
+    void deleteUserPermanently(Long userId);
 
-    @Transactional(readOnly = true)
-    public StudentProfileResponse getStudentByEmail(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("Élève non trouvé"));
-        StudentProfile profile = studentProfileRepository.findByUserEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("Profil élève non trouvé"));
-        return mapToStudentResponse(user, profile);
-    }
+    // ========== AVATAR ==========
+    void updateAvatar(String email, String filename);
 
-    @Transactional(readOnly = true)
-    public TeacherProfileResponse getTeacherByEmail(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("Enseignant non trouvé"));
-        TeacherProfile profile = teacherProfileRepository.findByUserEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("Profil enseignant non trouvé"));
-        return mapToTeacherResponse(user, profile);
-    }
+    void deleteAvatar(String email);
 
-    @Transactional
-    public void assignRoles(RoleAssignmentRequest request) {
-        User user = userRepository.findById(request.userId())
-                .orElseThrow(() -> new IllegalArgumentException("Utilisateur non trouvé"));
-
-        Set<Role> newRoles = new HashSet<>();
-        for (String roleName : request.roleNames()) {
-            Role role = roleRepository.findByName(roleName)
-                    .orElseThrow(() -> new IllegalArgumentException("Rôle inconnu: " + roleName));
-            newRoles.add(role);
-        }
-
-        user.setRoles(newRoles);
-        userRepository.save(user);
-    }
-
-    @Transactional
-    public void toggleUserActive(Long userId, boolean active) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Utilisateur non trouvé"));
-        user.setActive(active);
-        userRepository.save(user);
-    }
-
-    @Transactional
-    public void deleteUser(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Utilisateur non trouvé"));
-
-        studentProfileRepository.findByUserEmail(user.getUsername())
-                .ifPresent(studentProfileRepository::delete);
-        teacherProfileRepository.findByUserEmail(user.getUsername())
-                .ifPresent(teacherProfileRepository::delete);
-
-        userRepository.delete(user);
-    }
-
-    // ==================== PROFIL CONNECTÉ (/me) ====================
-
-    @Transactional(readOnly = true)
-    public MeResponse getMyProfile(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("Utilisateur non trouvé"));
-
-        MeResponse.StudentInfo student = null;
-        MeResponse.TeacherInfo teacher = null;
-        String profileType;
-
-        if (user.hasRole(ROLE_ELEVE)) {
-            profileType = "STUDENT";
-            StudentProfile sp = studentProfileRepository.findByUserEmail(email)
-                    .orElseThrow(() -> new IllegalArgumentException("Profil élève non trouvé"));
-            student = new MeResponse.StudentInfo(
-                    sp.getStudentId(),
-                    sp.getRegistrationNumber(),
-                    sp.getGradeLevel(),
-                    sp.getClassName(),
-                    sp.getSection(),
-                    sp.getAcademicYear(),
-                    sp.getBirthDate(),
-                    sp.getParentName(),
-                    sp.getParentPhone(),
-                    sp.getParentEmail(),
-                    sp.getEmergencyContact(),
-                    sp.getAddress(),
-                    sp.getEnrollmentDate(),
-                    sp.isScholarship()
-            );
-        } else if (user.hasRole(ROLE_ENSEIGNANT)) {
-            profileType = "TEACHER";
-            TeacherProfile tp = teacherProfileRepository.findByUserEmail(email)
-                    .orElseThrow(() -> new IllegalArgumentException("Profil enseignant non trouvé"));
-            teacher = new MeResponse.TeacherInfo(
-                    tp.getTeacherId(),
-                    tp.getDepartment(),
-                    tp.getSpecialization(),
-                    tp.getSubjects(),
-                    tp.getHireDate(),
-                    tp.getQualification(),
-                    tp.getPhone(),
-                    tp.getOfficeLocation(),
-                    tp.getBio(),
-                    tp.isTenured()
-            );
-        } else {
-            profileType = user.hasRole(ROLE_SUPERADMIN) ? "SUPERADMIN" : "ADMIN";
-        }
-
-        return new MeResponse(
-                user.getId(),
-                user.getPublicUsername(),
-                user.getEmail(),
-                user.isActive(),
-                user.getRoleNames(),
-                profileType,
-                resolveAvatarUrl(user.getAvatarUrl()),
-                student,
-                teacher
-        );
-    }
-
-    // ==================== GESTION AVATAR ====================
-
-    @Transactional
-    public void updateAvatar(String email, String filename) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("Utilisateur non trouvé"));
-
-        if (user.getAvatarUrl() != null) {
-            avatarService.deleteFile(user.getAvatarUrl());
-        }
-
-        user.setAvatarUrl(filename);
-        userRepository.save(user);
-    }
-
-    @Transactional
-    public void deleteAvatar(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("Utilisateur non trouvé"));
-
-        if (user.getAvatarUrl() != null) {
-            avatarService.deleteFile(user.getAvatarUrl());
-            user.setAvatarUrl(null);
-            userRepository.save(user);
-        }
-    }
-
-    @Transactional(readOnly = true)
-    public String getAvatarFilename(String email) {
-        return userRepository.findByEmail(email)
-                .map(User::getAvatarUrl)
-                .filter(url -> url != null && !url.isBlank())
-                .orElseThrow(() -> new IllegalArgumentException("Aucun avatar défini pour cet utilisateur"));
-    }
-
-    // ==================== MAPPERS PRIVÉS ====================
-
-    private StudentProfileResponse mapToStudentResponse(User user, StudentProfile profile) {
-        return new StudentProfileResponse(
-                user.getId(),
-                user.getPublicUsername(),
-                user.getUsername(),
-                resolveAvatarUrl(user.getAvatarUrl()),
-                user.isActive(),
-                user.getRoleNames(),
-                user.getPermissionNames(),
-                profile.getStudentId(),
-                profile.getRegistrationNumber(),
-                profile.getGradeLevel(),
-                profile.getClassName(),
-                profile.getSection(),
-                profile.getAcademicYear(),
-                profile.getBirthDate(),
-                profile.getParentName(),
-                profile.getParentPhone(),
-                profile.getParentEmail(),
-                profile.getEmergencyContact(),
-                profile.getAddress(),
-                profile.getEnrollmentDate(),
-                profile.isScholarship()
-        );
-    }
-
-    private TeacherProfileResponse mapToTeacherResponse(User user, TeacherProfile profile) {
-        return new TeacherProfileResponse(
-                user.getId(),
-                user.getPublicUsername(),
-                user.getUsername(),
-                resolveAvatarUrl(user.getAvatarUrl()),
-                user.isActive(),
-                user.getRoleNames(),
-                user.getPermissionNames(),
-                profile.getTeacherId(),
-                profile.getDepartment(),
-                profile.getSpecialization(),
-                profile.getSubjects(),
-                profile.getHireDate(),
-                profile.getQualification(),
-                profile.getPhone(),
-                profile.getOfficeLocation(),
-                profile.getBio(),
-                profile.isTenured()
-        );
-    }
-
-    private UserListResponse mapToUserList(User user) {
-        String profileType = "UNKNOWN";
-        if (user.hasRole(ROLE_ELEVE)) profileType = "STUDENT";
-        else if (user.hasRole(ROLE_ENSEIGNANT)) profileType = "TEACHER";
-        else if (user.hasRole(ROLE_ADMIN)) profileType = "ADMIN";
-        else if (user.hasRole(ROLE_SUPERADMIN)) profileType = "SUPERADMIN";
-
-        return new UserListResponse(
-                user.getId(),
-                user.getPublicUsername(),
-                user.getEmail(),
-                user.isActive(),
-                user.getRoleNames(),
-                profileType,
-                resolveAvatarUrl(user.getAvatarUrl())
-        );
-    }
-
-    /**
-     * Transforme le filename brut stocké en DB en URL HTTP utilisable par le frontend.
-     * Ex: "avatar_abc123.jpg" → "/uploads/profiles/avatar_abc123.jpg"
-     */
-    private String resolveAvatarUrl(String filename) {
-        return (filename != null && !filename.isBlank())
-                ? "/uploads/profiles/" + filename
-                : null;
-    }
+    String getAvatarFilename(String email);
 }

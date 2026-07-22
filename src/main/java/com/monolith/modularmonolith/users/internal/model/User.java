@@ -4,11 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -18,7 +14,7 @@ import java.util.stream.Collectors;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class User implements UserDetails {
+public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -47,6 +43,8 @@ public class User implements UserDetails {
     )
     private Set<Role> roles = new HashSet<>();
 
+    // ✅ REMOVED: implements UserDetails
+
     public User(String username, String email, String password, Set<Role> roles) {
         this.username = username;
         this.email = email;
@@ -55,19 +53,7 @@ public class User implements UserDetails {
         this.active = true;
     }
 
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        Set<GrantedAuthority> authorities = new HashSet<>();
-        for (Role role : roles) {
-            authorities.add(new SimpleGrantedAuthority(role.getName()));
-            for (Permission p : role.getPermissions()) {
-                authorities.add(new SimpleGrantedAuthority(p.getName()));
-            }
-        }
-        return authorities;
-    }
-
-    // Helpers pour vérifier les rôles
+    // ✅ Helpers
     public boolean hasRole(String roleName) {
         return roles.stream().anyMatch(r -> r.getName().equals(roleName));
     }
@@ -88,12 +74,4 @@ public class User implements UserDetails {
                 .map(Permission::getName)
                 .collect(Collectors.toSet());
     }
-
-    @Override public String getPassword() { return this.password; }
-    @Override public String getUsername() { return this.email; }
-    public String getPublicUsername() { return this.username; }
-    @Override public boolean isAccountNonExpired() { return true; }
-    @Override public boolean isAccountNonLocked() { return true; }
-    @Override public boolean isCredentialsNonExpired() { return true; }
-    @Override public boolean isEnabled() { return this.active; }
 }

@@ -1,4 +1,4 @@
-package com.monolith.modularmonolith.users.internal.dto.request;
+package com.monolith.modularmonolith.auth.internal.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
