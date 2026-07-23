@@ -107,7 +107,9 @@ public class UserProfileController {
 
         String oldFilename = schoolUserService.getAvatarFilename(email);
         schoolUserService.deleteAvatar(email);
-        avatarService.deleteFile(oldFilename);
+        if (oldFilename != null) {
+            avatarService.deleteFile(oldFilename);
+        }
 
         return ResponseEntity.noContent().build();
     }

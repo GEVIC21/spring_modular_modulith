@@ -1,4 +1,4 @@
-package com.monolith.modularmonolith.users.external.controller;
+package com.monolith.modularmonolith.users.internal.controller;
 
 import com.monolith.modularmonolith.users.internal.service.AvatarService;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +35,7 @@ public class PublicAvatarController {
                 .body(resource);
     }
 
-    @GetMapping("/thumb_{filename}")
+    @GetMapping("/thumb/{filename}")
     public ResponseEntity<Resource> getThumbnail(@PathVariable String filename) {
         Resource resource = avatarService.loadFileAsResource("thumb_" + filename);
         String contentType = avatarService.resolveContentType(filename);

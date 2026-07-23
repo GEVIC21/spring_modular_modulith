@@ -1,7 +1,7 @@
 package com.monolith.modularmonolith.auth.internal.service;
 
-import com.monolith.modularmonolith.users.internal.model.User;
-import com.monolith.modularmonolith.users.internal.repository.UserRepository;
+import com.monolith.modularmonolith.users.internal.model.SchoolUser;
+import com.monolith.modularmonolith.users.internal.repository.SchoolUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,20 +12,14 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PasswordService {
 
-    private final UserRepository userRepository;
+    private final SchoolUserRepository schoolUserRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
     public void changePassword(String userEmail, String currentPassword, String newPassword, String confirmPassword) {
-        if (!newPassword.equals(confirmPassword)) {
-            throw new IllegalArgumentException("Le nouveau mot de passe et la confirmation ne correspondent pas.");
-        }
+        validatePasswordChange(newPassword, confirmPassword);
 
-        if (newPassword.length() < 8) {
-            throw new IllegalArgumentException("Le nouveau mot de passe doit contenir au moins 8 caractères.");
-        }
-
-        User user = userRepository.findByEmail(userEmail)
+        SchoolUser user = schoolUserRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new BadCredentialsException("Utilisateur non trouvé."));
 
         if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
@@ -37,6 +31,15 @@ public class PasswordService {
         }
 
         user.setPassword(passwordEncoder.encode(newPassword));
-        userRepository.save(user);
+        schoolUserRepository.save(user);
+    }
+
+    private void validatePasswordChange(String newPassword, String confirmPassword) {
+        if (!newPassword.equals(confirmPassword)) {
+            throw new IllegalArgumentException("Le nouveau mot de passe et la confirmation ne correspondent pas.");
+        }
+        if (newPassword.length() < 8) {
+            throw new IllegalArgumentException("Le nouveau mot de passe doit contenir au moins 8 caractères.");
+        }
     }
 }

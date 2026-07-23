@@ -1,41 +1,31 @@
 package com.monolith.modularmonolith.users.internal.service;
 
 import com.monolith.modularmonolith.users.api.UserRoleVerifier;
-import com.monolith.modularmonolith.users.internal.model.User;
-import com.monolith.modularmonolith.users.internal.repository.UserRepository;
+import com.monolith.modularmonolith.users.internal.repository.SchoolUserRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.Set;
 
-/**
- * Implémentation du port UserRoleVerifier
- * Classe INTERNE : les autres modules ne doivent pas dépendre de cette classe
- * Ils doivent passer par l'interface UserRoleVerifier dans le package api
- */
 @Service
 public class UserRoleVerifierImpl implements UserRoleVerifier {
 
-    private final UserRepository userRepository;
+    private final SchoolUserRepository schoolUserRepository;
 
-    public UserRoleVerifierImpl(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public UserRoleVerifierImpl(SchoolUserRepository schoolUserRepository) {
+        this.schoolUserRepository = schoolUserRepository;
     }
 
     @Override
     public boolean hasRole(Long userId, String roleName) {
-        return userRepository.findById(userId)
-                .map(user -> user.getRoles().stream()
-                        .anyMatch(role -> role.getName().equalsIgnoreCase(roleName)))
+        return schoolUserRepository.findById(userId)
+                .map(user -> user.hasRole(roleName))
                 .orElse(false);
     }
 
     @Override
     public boolean hasAnyRole(Long userId, Set<String> roleNames) {
-        return userRepository.findById(userId)
-                .map(user -> user.getRoles().stream()
-                        .map(role -> role.getName().toUpperCase())
-                        .anyMatch(roleName -> roleNames.stream()
-                                .anyMatch(r -> r.equalsIgnoreCase(roleName))))
+        return schoolUserRepository.findById(userId)
+                .map(user -> user.hasAnyRole(roleNames))
                 .orElse(false);
     }
 }

@@ -14,6 +14,8 @@ import org.mapstruct.Mapping;
 import org.mapstruct.Named;
 import org.mapstruct.factory.Mappers;
 
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -29,17 +31,16 @@ public interface UserProfileMapper {
     // ========== MeResponse (profil complet) ==========
 
     @Mapping(target = "displayName", expression = "java(buildDisplayName(user))")
+    @Mapping(target = "permissions", expression = "java(buildPermissions(user))")
     @Mapping(target = "student", source = "studentProfile", qualifiedByName = "mapStudentInfo")
     @Mapping(target = "teacher", source = "teacherProfile", qualifiedByName = "mapTeacherInfo")
     @Mapping(target = "admin", source = "adminProfile", qualifiedByName = "mapAdminInfo")
     @Mapping(target = "parent", ignore = true)
+    @Mapping(target = "thumbnailUrl", ignore = true)
     MeResponse toMeResponse(SchoolUser user);
 
     // ========== UserProfileSummaryResponse (liste paginée) ==========
 
-    @Mapping(target = "firstName", source = "firstName")
-    @Mapping(target = "lastName", source = "lastName")
-    @Mapping(target = "profileType", source = "profileType")
     @Mapping(target = "gradeLevel", expression = "java(extractGradeLevel(user))")
     @Mapping(target = "department", expression = "java(extractDepartment(user))")
     @Mapping(target = "roles", expression = "java(mapRoles(user.getRoles()))")
@@ -77,7 +78,9 @@ public interface UserProfileMapper {
                 profile.getBloodGroup(),
                 profile.getAllergies(),
                 profile.getMedicalNotes(),
-                profile.getExtracurricularActivities()
+                profile.getExtracurricularActivities() != null
+                        ? new HashSet<>(profile.getExtracurricularActivities())
+                        : new HashSet<>()
         );
     }
 
@@ -89,8 +92,8 @@ public interface UserProfileMapper {
                 profile.getEmployeeId(),
                 profile.getDepartment(),
                 profile.getSpecialization(),
-                profile.getSubjects(),
-                profile.getClassesAssigned(),
+                profile.getSubjects() != null ? new HashSet<>(profile.getSubjects()) : new HashSet<>(),
+                profile.getClassesAssigned() != null ? new HashSet<>(profile.getClassesAssigned()) : new HashSet<>(),
                 profile.getHireDate(),
                 profile.getContractEndDate(),
                 profile.getContractType(),
@@ -119,7 +122,7 @@ public interface UserProfileMapper {
                 profile.getJobTitle(),
                 profile.getHireDate(),
                 profile.getAccessLevel(),
-                profile.getManagedModules(),
+                profile.getManagedModules() != null ? new HashSet<>(profile.getManagedModules()) : new HashSet<>(),
                 profile.isCanManageUsers(),
                 profile.isCanManageFinances(),
                 profile.isCanManageAcademics(),
@@ -156,8 +159,45 @@ public interface UserProfileMapper {
         return user.getUsername();
     }
 
+    default Set<String> buildPermissions(SchoolUser user) {
+        Set<String> perms = new HashSet<>();
+        if (user.getRoles() == null) return perms;
+
+        for (String role : user.getRoles()) {
+            switch (role.toUpperCase()) {
+                case "SUPER_ADMIN" -> {
+                    perms.add("ALL");
+                    perms.add("USERS_MANAGE");
+                    perms.add("FINANCES_MANAGE");
+                    perms.add("ACADEMICS_MANAGE");
+                    perms.add("SETTINGS_MANAGE");
+                }
+                case "ADMIN" -> {
+                    perms.add("USERS_MANAGE");
+                    perms.add("FINANCES_MANAGE");
+                    perms.add("ACADEMICS_MANAGE");
+                }
+                case "TEACHER" -> {
+                    perms.add("GRADES_MANAGE");
+                    perms.add("ATTENDANCE_MANAGE");
+                    perms.add("STUDENTS_READ");
+                }
+                case "STUDENT" -> {
+                    perms.add("PROFILE_READ");
+                    perms.add("GRADES_READ");
+                    perms.add("SCHEDULE_READ");
+                }
+                case "PARENT" -> {
+                    perms.add("CHILDREN_READ");
+                    perms.add("GRADES_READ");
+                }
+            }
+        }
+        return perms;
+    }
+
     default Set<String> mapRoles(Set<String> roles) {
-        if (roles == null) return java.util.Collections.emptySet();
+        if (roles == null) return Collections.emptySet();
         return roles.stream()
                 .map(role -> role.startsWith("ROLE_") ? role.substring(5) : role)
                 .collect(Collectors.toSet());

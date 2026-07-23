@@ -12,10 +12,7 @@ import java.util.Set;
 
 @Entity
 @Table(name = "school_users")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class SchoolUser {
 
     @Id
@@ -41,7 +38,7 @@ public class SchoolUser {
     private String phone;
 
     @Column(length = 10)
-    private String gender; // MALE, FEMALE, OTHER
+    private String gender;
 
     @Column(name = "birth_date")
     private LocalDate birthDate;
@@ -65,7 +62,7 @@ public class SchoolUser {
     private boolean emailVerified = false;
 
     @Column(name = "profile_type", length = 20, nullable = false)
-    private String profileType; // STUDENT, TEACHER, ADMIN, SUPER_ADMIN, PARENT
+    private String profileType;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
@@ -92,4 +89,23 @@ public class SchoolUser {
 
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
+
+    // Helper pour les rôles
+    public boolean hasRole(String role) {
+        return roles != null && roles.contains(role.toUpperCase());
+    }
+
+    public boolean hasAnyRole(Set<String> roleNames) {
+        return roles != null && roleNames.stream()
+                .map(String::toUpperCase)
+                .anyMatch(roles::contains);
+    }
+
+    // Helper pour le nom complet
+    public String getFullName() {
+        if (firstName != null && lastName != null) {
+            return firstName + " " + lastName;
+        }
+        return username;
+    }
 }

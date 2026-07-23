@@ -17,13 +17,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.security.SecureRandom;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class SchoolUserServiceImpl implements SchoolUserService {
 
     private final SchoolUserRepository userRepository;
@@ -48,6 +50,7 @@ public class SchoolUserServiceImpl implements SchoolUserService {
     }
 
     @Override
+    @Transactional
     public MeResponse updateStudentProfile(String email, UpdateStudentProfileRequest request) {
         SchoolUser user = findUserByEmail(email);
         updateBaseUserInfo(user, request);
@@ -57,6 +60,7 @@ public class SchoolUserServiceImpl implements SchoolUserService {
     }
 
     @Override
+    @Transactional
     public MeResponse updateTeacherProfile(String email, UpdateTeacherProfileRequest request) {
         SchoolUser user = findUserByEmail(email);
         updateBaseUserInfo(user, request);
@@ -66,6 +70,7 @@ public class SchoolUserServiceImpl implements SchoolUserService {
     }
 
     @Override
+    @Transactional
     public MeResponse updateAdminProfile(String email, UpdateAdminProfileRequest request) {
         SchoolUser user = findUserByEmail(email);
         updateBaseUserInfo(user, request);
@@ -77,6 +82,7 @@ public class SchoolUserServiceImpl implements SchoolUserService {
     // ==================== CRÉATION PAR ADMIN ====================
 
     @Override
+    @Transactional
     public MeResponse createStudent(StudentCreateRequest request) {
         validateEmailNotExists(request.email());
 
@@ -106,7 +112,7 @@ public class SchoolUserServiceImpl implements SchoolUserService {
                 .className(request.className())
                 .section(request.section())
                 .academicYear(request.academicYear())
-                .enrollmentDate(request.enrollmentDate() != null ? request.enrollmentDate() : LocalDateTime.now().toLocalDate())
+                .enrollmentDate(request.enrollmentDate() != null ? request.enrollmentDate() : LocalDate.now())
                 .scholarship(request.scholarship())
                 .scholarshipType(request.scholarshipType())
                 .parentName(request.parentName())
@@ -121,7 +127,8 @@ public class SchoolUserServiceImpl implements SchoolUserService {
                 .bloodGroup(request.bloodGroup())
                 .allergies(request.allergies())
                 .medicalNotes(request.medicalNotes())
-                .extracurricularActivities(request.extracurricularActivities() != null ? request.extracurricularActivities() : new HashSet<>())
+                .extracurricularActivities(request.extracurricularActivities() != null
+                        ? new HashSet<>(request.extracurricularActivities()) : new HashSet<>())
                 .build();
 
         user.setStudentProfile(student);
@@ -130,12 +137,11 @@ public class SchoolUserServiceImpl implements SchoolUserService {
         log.info("Élève créé: id={}, studentId={}, email={}", saved.getId(), student.getStudentId(), saved.getEmail());
 
         // TODO: Envoyer email avec mot de passe temporaire
-        // emailService.sendWelcomeEmail(saved.getEmail(), saved.getFirstName(), tempPassword);
-
         return userProfileMapper.toMeResponse(saved);
     }
 
     @Override
+    @Transactional
     public MeResponse createTeacher(TeacherCreateRequest request) {
         validateEmailNotExists(request.email());
 
@@ -163,8 +169,8 @@ public class SchoolUserServiceImpl implements SchoolUserService {
                 .employeeId(generateEmployeeId())
                 .department(request.department())
                 .specialization(request.specialization())
-                .subjects(request.subjects() != null ? request.subjects() : new HashSet<>())
-                .classesAssigned(request.classesAssigned() != null ? request.classesAssigned() : new HashSet<>())
+                .subjects(request.subjects() != null ? new HashSet<>(request.subjects()) : new HashSet<>())
+                .classesAssigned(request.classesAssigned() != null ? new HashSet<>(request.classesAssigned()) : new HashSet<>())
                 .hireDate(request.hireDate())
                 .contractEndDate(request.contractEndDate())
                 .contractType(request.contractType())
@@ -187,6 +193,7 @@ public class SchoolUserServiceImpl implements SchoolUserService {
     }
 
     @Override
+    @Transactional
     public MeResponse createAdmin(AdminCreateRequest request) {
         validateEmailNotExists(request.email());
 
@@ -212,7 +219,7 @@ public class SchoolUserServiceImpl implements SchoolUserService {
                 .jobTitle(request.jobTitle())
                 .hireDate(request.hireDate())
                 .accessLevel(request.accessLevel())
-                .managedModules(request.managedModules() != null ? request.managedModules() : new HashSet<>())
+                .managedModules(request.managedModules() != null ? new HashSet<>(request.managedModules()) : new HashSet<>())
                 .canManageUsers(request.canManageUsers())
                 .canManageFinances(request.canManageFinances())
                 .canManageAcademics(request.canManageAcademics())
@@ -229,9 +236,9 @@ public class SchoolUserServiceImpl implements SchoolUserService {
     }
 
     @Override
+    @Transactional
     public BulkCreationResponse createStudentsBulk(MultipartFile file) {
         log.info("Import bulk d'élèves");
-        // TODO: Implémenter parsing CSV/Excel avec Apache POI ou OpenCSV
         throw new UnsupportedOperationException("Import bulk non encore implémenté");
     }
 
@@ -257,7 +264,6 @@ public class SchoolUserServiceImpl implements SchoolUserService {
     @Transactional(readOnly = true)
     public List<UserProfileSummaryResponse> searchUsers(String firstName, String lastName, String email,
                                                         String studentId, String teacherId, String gradeLevel, String department) {
-        // TODO: Implémenter recherche avancée avec criteria/specifications
         return List.of();
     }
 
@@ -277,20 +283,21 @@ public class SchoolUserServiceImpl implements SchoolUserService {
     // ==================== MISE À JOUR PAR ADMIN ====================
 
     @Override
+    @Transactional
     public MeResponse updateStudentByAdmin(Long userId, StudentCreateRequest request) {
         SchoolUser user = findUserById(userId);
-        // TODO: Implémenter mise à jour complète
         return userProfileMapper.toMeResponse(user);
     }
 
     @Override
+    @Transactional
     public MeResponse updateTeacherByAdmin(Long userId, TeacherCreateRequest request) {
         SchoolUser user = findUserById(userId);
-        // TODO: Implémenter mise à jour complète
         return userProfileMapper.toMeResponse(user);
     }
 
     @Override
+    @Transactional
     public MeResponse patchUser(Long userId, UserPatchRequest request) {
         SchoolUser user = findUserById(userId);
 
@@ -306,6 +313,7 @@ public class SchoolUserServiceImpl implements SchoolUserService {
     // ==================== GESTION DES COMPTES ====================
 
     @Override
+    @Transactional
     public void deactivateUser(Long userId) {
         SchoolUser user = findUserById(userId);
         user.setActive(false);
@@ -315,6 +323,7 @@ public class SchoolUserServiceImpl implements SchoolUserService {
     }
 
     @Override
+    @Transactional
     public void activateUser(Long userId) {
         SchoolUser user = findUserById(userId);
         user.setActive(true);
@@ -324,6 +333,7 @@ public class SchoolUserServiceImpl implements SchoolUserService {
     }
 
     @Override
+    @Transactional
     public PasswordResetResponse resetPassword(Long userId) {
         SchoolUser user = findUserById(userId);
         String tempPassword = generateTemporaryPassword();
@@ -333,15 +343,15 @@ public class SchoolUserServiceImpl implements SchoolUserService {
 
         log.info("Mot de passe réinitialisé pour: {}", userId);
 
-        // TODO: Envoyer email avec nouveau mot de passe
         return new PasswordResetResponse(
                 "Mot de passe réinitialisé avec succès",
-                false, // emailSent
-                tempPassword // À afficher à l'admin si email échoue
+                false,
+                tempPassword
         );
     }
 
     @Override
+    @Transactional
     public void deleteUserPermanently(Long userId) {
         userRepository.deleteById(userId);
         log.warn("Utilisateur supprimé PERMANENTEMENT: {}", userId);
@@ -350,6 +360,7 @@ public class SchoolUserServiceImpl implements SchoolUserService {
     // ==================== AVATAR ====================
 
     @Override
+    @Transactional
     public void updateAvatar(String email, String filename) {
         SchoolUser user = findUserByEmail(email);
         user.setAvatarUrl(filename);
@@ -358,6 +369,7 @@ public class SchoolUserServiceImpl implements SchoolUserService {
     }
 
     @Override
+    @Transactional
     public void deleteAvatar(String email) {
         SchoolUser user = findUserByEmail(email);
         user.setAvatarUrl(null);
@@ -421,11 +433,35 @@ public class SchoolUserServiceImpl implements SchoolUserService {
         return String.format("ADM-%05d", count);
     }
 
-    // Méthodes utilitaires pour mise à jour
+    // ==================== MISE À JOUR BASE USER ====================
+
     private void updateBaseUserInfo(SchoolUser user, Object request) {
-        // Extraction par réflexion ou casting selon le type
-        // Simplifié ici — à adapter selon tes besoins
+        if (request instanceof UpdateStudentProfileRequest r) {
+            if (r.firstName() != null) user.setFirstName(r.firstName());
+            if (r.lastName() != null) user.setLastName(r.lastName());
+            if (r.phone() != null) user.setPhone(r.phone());
+            if (r.gender() != null) user.setGender(r.gender());
+            if (r.birthDate() != null) user.setBirthDate(r.birthDate());
+            if (r.nationality() != null) user.setNationality(r.nationality());
+            if (r.language() != null) user.setLanguage(r.language());
+            if (r.timezone() != null) user.setTimezone(r.timezone());
+        } else if (request instanceof UpdateTeacherProfileRequest r) {
+            if (r.firstName() != null) user.setFirstName(r.firstName());
+            if (r.lastName() != null) user.setLastName(r.lastName());
+            if (r.phone() != null) user.setPhone(r.phone());
+            if (r.gender() != null) user.setGender(r.gender());
+            if (r.birthDate() != null) user.setBirthDate(r.birthDate());
+            if (r.nationality() != null) user.setNationality(r.nationality());
+            if (r.language() != null) user.setLanguage(r.language());
+            if (r.timezone() != null) user.setTimezone(r.timezone());
+        } else if (request instanceof UpdateAdminProfileRequest r) {
+            if (r.firstName() != null) user.setFirstName(r.firstName());
+            if (r.lastName() != null) user.setLastName(r.lastName());
+            if (r.phone() != null) user.setPhone(r.phone());
+        }
     }
+
+    // ==================== MISE À JOUR PROFILS SPÉCIFIQUES ====================
 
     private void updateStudentProfileInfo(SchoolUser user, UpdateStudentProfileRequest request) {
         StudentProfile profile = user.getStudentProfile();
@@ -446,14 +482,47 @@ public class SchoolUserServiceImpl implements SchoolUserService {
         if (request.bloodGroup() != null) profile.setBloodGroup(request.bloodGroup());
         if (request.allergies() != null) profile.setAllergies(request.allergies());
         if (request.medicalNotes() != null) profile.setMedicalNotes(request.medicalNotes());
-        if (request.extracurricularActivities() != null) profile.setExtracurricularActivities(request.extracurricularActivities());
+        if (request.extracurricularActivities() != null)
+            profile.setExtracurricularActivities(new HashSet<>(request.extracurricularActivities()));
     }
 
     private void updateTeacherProfileInfo(SchoolUser user, UpdateTeacherProfileRequest request) {
-        // TODO: Implémenter
+        TeacherProfile profile = user.getTeacherProfile();
+        if (profile == null) {
+            profile = new TeacherProfile();
+            profile.setUser(user);
+            user.setTeacherProfile(profile);
+        }
+        if (request.department() != null) profile.setDepartment(request.department());
+        if (request.specialization() != null) profile.setSpecialization(request.specialization());
+        if (request.subjects() != null) profile.setSubjects(new HashSet<>(request.subjects()));
+        if (request.classesAssigned() != null) profile.setClassesAssigned(new HashSet<>(request.classesAssigned()));
+        if (request.qualification() != null) profile.setQualification(request.qualification());
+        if (request.certifications() != null) profile.setCertifications(request.certifications());
+        if (request.officeLocation() != null) profile.setOfficeLocation(request.officeLocation());
+        if (request.officeHours() != null) profile.setOfficeHours(request.officeHours());
+        if (request.bio() != null) profile.setBio(request.bio());
+        if (request.researchInterests() != null) profile.setResearchInterests(request.researchInterests());
+        if (request.contractType() != null) profile.setContractType(request.contractType());
+        if (request.yearsOfExperience() != null) profile.setYearsOfExperience(request.yearsOfExperience());
+        if (request.departmentHead() != null) profile.setDepartmentHead(request.departmentHead());
     }
 
     private void updateAdminProfileInfo(SchoolUser user, UpdateAdminProfileRequest request) {
-        // TODO: Implémenter
+        AdminProfile profile = user.getAdminProfile();
+        if (profile == null) {
+            profile = new AdminProfile();
+            profile.setUser(user);
+            user.setAdminProfile(profile);
+        }
+        if (request.department() != null) profile.setDepartment(request.department());
+        if (request.jobTitle() != null) profile.setJobTitle(request.jobTitle());
+        if (request.accessLevel() != null) profile.setAccessLevel(request.accessLevel());
+        if (request.managedModules() != null) profile.setManagedModules(new HashSet<>(request.managedModules()));
+        if (request.canManageUsers() != null) profile.setCanManageUsers(request.canManageUsers());
+        if (request.canManageFinances() != null) profile.setCanManageFinances(request.canManageFinances());
+        if (request.canManageAcademics() != null) profile.setCanManageAcademics(request.canManageAcademics());
+        if (request.officePhone() != null) profile.setOfficePhone(request.officePhone());
+        if (request.officeLocation() != null) profile.setOfficeLocation(request.officeLocation());
     }
 }

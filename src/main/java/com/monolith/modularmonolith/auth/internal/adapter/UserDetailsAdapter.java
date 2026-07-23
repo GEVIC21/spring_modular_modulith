@@ -6,31 +6,33 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Adapter : convertit UserSummary (DTO du module users) en UserDetails (Spring Security).
+ * Adapter : convertit UserSummary (port users) en UserDetails (Spring Security).
  *
- * ✅ Classe dédiée (pas d'inner class)
- * ✅ Record pour l'immutabilité
- * ✅ Préfixe ROLE_ géré ici (cohérence avec @PreAuthorize("hasRole('ADMIN')"))
- * ✅ getPassword() retourne une valeur valide (évite UnsupportedOperationException)
+ * ✅ Stocke le password hashé pour l'AuthenticationManager
+ * ✅ Ajoute le préfixe ROLE_ pour Spring Security
  */
-public record UserDetailsAdapter(UserSummary user) implements UserDetails {
+public record UserDetailsAdapter(UserSummary user, String hashedPassword) implements UserDetails {
+
+    /**
+     * Constructeur sans password (pour compatibilité, ne pas utiliser pour l'auth)
+     */
+    public UserDetailsAdapter(UserSummary user) {
+        this(user, "");
+    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return user.roles().stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
                 .collect(Collectors.toUnmodifiableSet());
     }
 
     @Override
     public String getPassword() {
-        // Le mot de passe n'est PAS stocké dans UserSummary (sécurité).
-        // Spring Security l'utilise via AuthenticationManager, pas via cet adapter.
-        return "";
+        return hashedPassword;  // ← VRAI hash BCrypt pour l'AuthenticationManager
     }
 
     @Override
@@ -43,8 +45,7 @@ public record UserDetailsAdapter(UserSummary user) implements UserDetails {
     @Override public boolean isCredentialsNonExpired()  { return true; }
     @Override public boolean isEnabled()                { return true; }
 
-    // Accesseurs métier utiles pour les logs, audits, etc.
-    public Long getUserId()     { return user.id(); }
-    public String getEmail()    { return user.email(); }
-    public Set<String> getRoles() { return user.roles(); }
+    public Long getUserId()      { return user.id(); }
+    public String getEmail()     { return user.email(); }
+    public String getRawUsername() { return user.username(); }
 }

@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -22,27 +21,32 @@ public interface SchoolUserRepository extends JpaRepository<SchoolUser, Long> {
 
     boolean existsByUsername(String username);
 
-    @Query("SELECT u FROM SchoolUser u WHERE " +
-            "(:profileType IS NULL OR u.profileType = :profileType) AND " +
-            "(:search IS NULL OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) " +
-            "OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :search, '%')) " +
-            "OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
-            "(:active IS NULL OR u.active = :active)")
-    Page<SchoolUser> findAllWithFilters(
-            @Param("profileType") String profileType,
-            @Param("search") String search,
-            @Param("active") Boolean active,
-            Pageable pageable);
+    @Query("SELECT u FROM SchoolUser u " +
+            "LEFT JOIN FETCH u.studentProfile " +
+            "LEFT JOIN FETCH u.teacherProfile " +
+            "LEFT JOIN FETCH u.adminProfile " +
+            "LEFT JOIN FETCH u.roles " +
+            "WHERE u.email = :email")
+    Optional<SchoolUser> findByEmailWithProfiles(@Param("email") String email);
 
-    @Query("SELECT u FROM SchoolUser u LEFT JOIN FETCH u.studentProfile " +
-            "LEFT JOIN FETCH u.teacherProfile LEFT JOIN FETCH u.adminProfile " +
+    @Query("SELECT u FROM SchoolUser u " +
+            "LEFT JOIN FETCH u.studentProfile " +
+            "LEFT JOIN FETCH u.teacherProfile " +
+            "LEFT JOIN FETCH u.adminProfile " +
+            "LEFT JOIN FETCH u.roles " +
             "WHERE u.id = :id")
     Optional<SchoolUser> findByIdWithProfiles(@Param("id") Long id);
 
-    @Query("SELECT u FROM SchoolUser u LEFT JOIN FETCH u.studentProfile " +
-            "LEFT JOIN FETCH u.teacherProfile LEFT JOIN FETCH u.adminProfile " +
-            "WHERE u.email = :email")
-    Optional<SchoolUser> findByEmailWithProfiles(@Param("email") String email);
+    @Query("SELECT u FROM SchoolUser u " +
+            "WHERE (:profileType IS NULL OR u.profileType = :profileType) " +
+            "AND (:search IS NULL OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) " +
+            "     OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :search, '%')) " +
+            "     OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+            "AND (:active IS NULL OR u.active = :active)")
+    Page<SchoolUser> findAllWithFilters(@Param("profileType") String profileType,
+                                        @Param("search") String search,
+                                        @Param("active") Boolean active,
+                                        Pageable pageable);
 
     long countByProfileType(String profileType);
 

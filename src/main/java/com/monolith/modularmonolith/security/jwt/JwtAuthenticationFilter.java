@@ -5,8 +5,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -24,15 +24,11 @@ import java.io.IOException;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtils jwtUtils;
     private final UserDetailsService userDetailsService;
-
-    public JwtAuthenticationFilter(JwtUtils jwtUtils, @Lazy UserDetailsService userDetailsService) {
-        this.jwtUtils = jwtUtils;
-        this.userDetailsService = userDetailsService;
-    }
 
     @Override
     protected void doFilterInternal(
@@ -44,6 +40,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String authHeader = request.getHeader("Authorization");
 
         // Pas de header Authorization ou pas de Bearer → on passe
+        // L'AuthorizationFilter gérera le 401 si la ressource est protégée
         if (!StringUtils.hasText(authHeader) || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -70,11 +67,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     log.debug("Authentification JWT réussie pour {} sur {}", userEmail, request.getRequestURI());
                 } else {
                     log.warn("Token JWT invalide pour {} sur {}", userEmail, request.getRequestURI());
+                    // On ne met pas d'authentification → l'AuthorizationFilter gérera le 401
                 }
             }
         } catch (Exception e) {
             log.debug("Token JWT invalide ou expiré sur {} : {}", request.getRequestURI(), e.getMessage());
-            // On ne bloque pas la chaîne — le filtre suivant gérera l'accès non autorisé
+            // On ne bloque pas la chaîne — on laisse passer sans authentification
+            // L'AuthorizationFilter gérera le 401 si la ressource est protégée
         }
 
         filterChain.doFilter(request, response);
