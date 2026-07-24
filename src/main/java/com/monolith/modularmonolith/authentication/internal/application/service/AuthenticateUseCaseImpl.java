@@ -29,12 +29,14 @@ public class AuthenticateUseCaseImpl implements AuthenticateUseCase {
     @Override
     public AuthResponse execute(LoginRequest request) {
         try {
+            // 1. Spring Security authentifie (vérifie email + password via CustomUserDetailsService)
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.email(), request.password())
             );
 
+            // 2. Récupère les infos publiques pour la réponse
             UserSummary user = userLookup.findByEmail(request.email())
-                    .orElseThrow(() -> new UnauthorizedException("Utilisateur introuvable après authentification"));
+                    .orElseThrow(() -> new UnauthorizedException("Utilisateur introuvable"));
 
             String token = jwtUtils.generateToken(authentication);
 

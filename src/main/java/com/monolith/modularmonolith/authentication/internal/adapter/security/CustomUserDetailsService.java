@@ -1,8 +1,7 @@
 package com.monolith.modularmonolith.authentication.internal.adapter.security;
 
 import com.monolith.modularmonolith.identity.api.UserLookup;
-import com.monolith.modularmonolith.identity.api.UserSummary;
-import com.monolith.modularmonolith.shared.exception.ResourceNotFoundException;
+import com.monolith.modularmonolith.identity.api.UserSecurityInfo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -20,8 +19,8 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        UserSummary user = userLookup.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", email));
+        UserSecurityInfo user = userLookup.findSecurityInfoByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé: " + email));
 
         var authorities = user.roles().stream()
                 .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name()))
@@ -29,7 +28,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         return new org.springframework.security.core.userdetails.User(
                 user.email(),
-                "", // Le password est chargé séparément par le AuthManager via le provider
+                user.password(), // ← VRAI mot de passe hashé, plus ""
                 user.active(),
                 true,
                 true,

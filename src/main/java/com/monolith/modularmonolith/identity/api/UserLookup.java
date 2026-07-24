@@ -1,13 +1,7 @@
 package com.monolith.modularmonolith.identity.api;
 
-import com.monolith.modularmonolith.identity.internal.domain.model.User;
-
 import java.util.Optional;
 
-/**
- * API publique du module Identity pour la recherche d'utilisateurs.
- * Utilisable par les autres modules (ex: authentication).
- */
 public interface UserLookup {
 
     Optional<UserSummary> findByEmail(String email);
@@ -15,4 +9,10 @@ public interface UserLookup {
     Optional<UserSummary> findById(Long id);
 
     boolean existsByEmail(String email);
+
+    /**
+     * Charge les infos de sécurité (inclut le mot de passe hashé).
+     * Réservé à l'authentification Spring Security.
+     */
+    Optional<UserSecurityInfo> findSecurityInfoByEmail(String email);
 }

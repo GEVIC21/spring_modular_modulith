@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/v1/auth")  // ← aligné avec les autres controllers
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -23,6 +23,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        log.info("Login attempt for {}", request.email());
         return ResponseEntity.ok(authenticateUseCase.execute(request));
     }
 

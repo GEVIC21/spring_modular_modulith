@@ -1,6 +1,7 @@
 package com.monolith.modularmonolith.identity.internal.application.service;
 
 import com.monolith.modularmonolith.identity.api.UserLookup;
+import com.monolith.modularmonolith.identity.api.UserSecurityInfo;
 import com.monolith.modularmonolith.identity.api.UserSummary;
 import com.monolith.modularmonolith.identity.internal.domain.repository.UserRepository;
 import com.monolith.modularmonolith.identity.internal.mapper.UserProfileMapper;
@@ -51,5 +52,16 @@ public class UserLookupImpl implements UserLookup {
     @Override
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
+    }
+
+    @Override
+    public Optional<UserSecurityInfo> findSecurityInfoByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .map(u -> UserSecurityInfo.builder()
+                        .email(u.getEmail())
+                        .password(u.getPassword()) // ← le VRAI hash BCrypt
+                        .roles(u.getRoles())
+                        .active(u.isActive())
+                        .build());
     }
 }
