@@ -5,14 +5,11 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.Accessors;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Entité JPA principale représentant un utilisateur du système.
- * Hérite de AuditableEntity pour le tracking des dates de création/modification.
- */
 @Entity
 @Table(name = "users")
 @Getter
@@ -22,7 +19,7 @@ import java.util.Set;
 @Builder
 @Accessors(chain = true)
 @EqualsAndHashCode(of = "id", callSuper = false)
-@ToString(of = {"id", "username", "email", "profileType", "active", "roles"})
+@ToString(of = {"id", "email", "username", "firstName", "lastName", "profileType"})
 public class User extends AuditableEntity {
 
     @Id
@@ -32,68 +29,65 @@ public class User extends AuditableEntity {
     @Column(nullable = false, unique = true, length = 50)
     private String username;
 
-    @Column(nullable = false, unique = true, length = 255)
+    @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false)
     private String password;
 
-    @Column(name = "first_name", length = 100)
+    @Column(nullable = false, length = 100)
     private String firstName;
 
-    @Column(name = "last_name", length = 100)
+    @Column(nullable = false, length = 100)
     private String lastName;
 
-    @Column(name = "phone_number", length = 20)
+    @Column(length = 20)
     private String phoneNumber;
 
-    @Column(name = "avatar_filename", length = 255)
+    @Column(length = 20)
+    private String gender;
+
+    private LocalDate dateOfBirth;
+
+    @Column(length = 50)
+    private String nationality;
+
+    @Column(length = 10)
+    private String language;
+
     private String avatarFilename;
 
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
 
-    @Column(name = "email_verified", nullable = false)
     @Builder.Default
     private boolean emailVerified = false;
 
-    @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "profile_type", nullable = false, length = 20)
+    @Column(nullable = false)
     private ProfileType profileType;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
     @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false, length = 20)
+    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "role")
     @Builder.Default
     private Set<Role> roles = new HashSet<>();
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private StudentProfile studentProfile;
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private TeacherProfile teacherProfile;
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private AdminProfile adminProfile;
 
-    // === Méthodes métier ===
-
     public String getFullName() {
-        if (firstName != null && lastName != null) {
-            return firstName + " " + lastName;
-        }
-        if (firstName != null) {
-            return firstName;
-        }
-        if (lastName != null) {
-            return lastName;
-        }
-        return username;
+        return firstName + " " + lastName;
     }
 
     public boolean hasRole(Role role) {
@@ -102,9 +96,7 @@ public class User extends AuditableEntity {
 
     public boolean hasAnyRole(Role... rolesToCheck) {
         for (Role role : rolesToCheck) {
-            if (roles.contains(role)) {
-                return true;
-            }
+            if (roles.contains(role)) return true;
         }
         return false;
     }
@@ -133,26 +125,18 @@ public class User extends AuditableEntity {
         this.roles.remove(role);
     }
 
-    // === Setters bidirectionnels ===
-
-    public void setStudentProfile(StudentProfile studentProfile) {
-        this.studentProfile = studentProfile;
-        if (studentProfile != null) {
-            studentProfile.setUser(this);
-        }
+    public void setStudentProfile(StudentProfile profile) {
+        this.studentProfile = profile;
+        if (profile != null) profile.setUser(this);
     }
 
-    public void setTeacherProfile(TeacherProfile teacherProfile) {
-        this.teacherProfile = teacherProfile;
-        if (teacherProfile != null) {
-            teacherProfile.setUser(this);
-        }
+    public void setTeacherProfile(TeacherProfile profile) {
+        this.teacherProfile = profile;
+        if (profile != null) profile.setUser(this);
     }
 
-    public void setAdminProfile(AdminProfile adminProfile) {
-        this.adminProfile = adminProfile;
-        if (adminProfile != null) {
-            adminProfile.setUser(this);
-        }
+    public void setAdminProfile(AdminProfile profile) {
+        this.adminProfile = profile;
+        if (profile != null) profile.setUser(this);
     }
 }

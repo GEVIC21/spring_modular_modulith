@@ -1,7 +1,8 @@
 package com.monolith.modularmonolith.authentication.internal.adapter.security;
 
-import com.monolith.modularmonolith.identity.internal.domain.model.User;
-import com.monolith.modularmonolith.identity.internal.domain.repository.UserRepository;
+import com.monolith.modularmonolith.identity.api.UserLookup;
+import com.monolith.modularmonolith.identity.api.UserSummary;
+import com.monolith.modularmonolith.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,20 +16,25 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UserRepository userRepository;
+    private final UserLookup userLookup;
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+        UserSummary user = userLookup.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", email));
 
-        return org.springframework.security.core.userdetails.User.builder()
-                .username(user.getEmail())
-                .password(user.getPassword())
-                .authorities(user.getRoles().stream()
-                        .map(r -> new SimpleGrantedAuthority("ROLE_" + r.name()))
-                        .collect(Collectors.toList()))
-                .accountLocked(!user.isActive())
-                .build();
+        var authorities = user.roles().stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name()))
+                .collect(Collectors.toList());
+
+        return new org.springframework.security.core.userdetails.User(
+                user.email(),
+                "", // Le password est chargé séparément par le AuthManager via le provider
+                user.active(),
+                true,
+                true,
+                true,
+                authorities
+        );
     }
 }

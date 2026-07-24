@@ -1,6 +1,7 @@
 package com.monolith.modularmonolith.identity.internal.application.service;
 
 import com.monolith.modularmonolith.identity.internal.application.port.inbound.GetUserStatisticsUseCase;
+import com.monolith.modularmonolith.identity.internal.domain.model.ProfileType;
 import com.monolith.modularmonolith.identity.internal.domain.repository.UserRepository;
 import com.monolith.modularmonolith.identity.internal.dto.response.UserStatistics;
 import lombok.RequiredArgsConstructor;
@@ -17,12 +18,23 @@ public class GetUserStatisticsUseCaseImpl implements GetUserStatisticsUseCase {
     @Transactional(readOnly = true)
     public UserStatistics execute() {
         long total = userRepository.count();
-        long students = userRepository.countByProfileType("STUDENT");
-        long teachers = userRepository.countByProfileType("TEACHER");
-        long admins = userRepository.countByProfileType("ADMIN");
+        long students = userRepository.countByProfileType(ProfileType.STUDENT);
+        long teachers = userRepository.countByProfileType(ProfileType.TEACHER);
+        long admins = userRepository.countByProfileType(ProfileType.ADMIN);
+        long superAdmins = userRepository.countByProfileType(ProfileType.SUPER_ADMIN);
+        long parents = userRepository.countByProfileType(ProfileType.PARENT);
         long active = userRepository.countByActive(true);
         long inactive = userRepository.countByActive(false);
 
-        return new UserStatistics(total, students, teachers, admins, active, inactive);
+        return UserStatistics.builder()
+                .totalUsers(total)
+                .totalStudents(students)
+                .totalTeachers(teachers)
+                .totalAdmins(admins)
+                .totalSuperAdmins(superAdmins)
+                .totalParents(parents)
+                .activeUsers(active)
+                .inactiveUsers(inactive)
+                .build();
     }
 }

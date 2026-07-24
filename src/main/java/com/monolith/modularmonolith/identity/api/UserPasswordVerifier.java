@@ -1,4 +1,6 @@
 package com.monolith.modularmonolith.identity.api;
 
-public class UserPasswordVerifier {
+public interface UserPasswordVerifier {
+
+    boolean verifyPassword(String email, String rawPassword);
 }

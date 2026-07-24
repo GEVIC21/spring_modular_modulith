@@ -18,10 +18,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -52,15 +53,15 @@ public class CreateStudentUseCaseImpl implements CreateStudentUseCase {
                 .password(passwordEncoder.encode(tempPassword))
                 .firstName(request.firstName())
                 .lastName(request.lastName())
-                .phone(request.phone())
+                .phoneNumber(request.phoneNumber())
                 .gender(request.gender())
-                .birthDate(request.birthDate())
+                .dateOfBirth(request.dateOfBirth())
                 .nationality(request.nationality())
                 .language(request.language())
                 .active(true)
                 .emailVerified(false)
                 .profileType(ProfileType.STUDENT)
-                .roles(new HashSet<>(Set.of(Role.STUDENT)))
+                .roles(new HashSet<>(request.roles() != null ? request.roles() : Set.of(Role.STUDENT)))
                 .build();
 
         StudentProfile student = StudentProfile.builder()
@@ -71,13 +72,13 @@ public class CreateStudentUseCaseImpl implements CreateStudentUseCase {
                 .section(request.section())
                 .academicYear(request.academicYear())
                 .enrollmentDate(request.enrollmentDate() != null ? request.enrollmentDate() : LocalDate.now())
-                .scholarship(request.scholarship())
+                .scholarship(request.scholarship() != null ? request.scholarship() : false)
                 .scholarshipType(request.scholarshipType())
                 .parentName(request.parentName())
                 .parentEmail(request.parentEmail())
                 .parentPhone(request.parentPhone())
                 .emergencyContact(request.emergencyContact())
-                .emergencyContactPhone(request.emergencyContactPhone())
+                .emergencyPhone(request.emergencyPhone())
                 .address(request.address())
                 .city(request.city())
                 .postalCode(request.postalCode())
@@ -86,7 +87,8 @@ public class CreateStudentUseCaseImpl implements CreateStudentUseCase {
                 .allergies(request.allergies())
                 .medicalNotes(request.medicalNotes())
                 .extracurricularActivities(request.extracurricularActivities() != null
-                        ? new HashSet<>(request.extracurricularActivities()) : new HashSet<>())
+                        ? new HashSet<>(request.extracurricularActivities())
+                        : new HashSet<>())
                 .build();
 
         user.setStudentProfile(student);
@@ -94,23 +96,26 @@ public class CreateStudentUseCaseImpl implements CreateStudentUseCase {
         User saved = userRepository.save(user);
         log.info("Student created: id={}, studentId={}, email={}", saved.getId(), student.getStudentId(), saved.getEmail());
 
-        eventPublisher.publish(new UserCreatedEvent(
-                saved.getId(), saved.getEmail(), saved.getUsername(),
-                Set.of(Role.STUDENT.name()), ProfileType.STUDENT.name(), null
-        ));
+        eventPublisher.publish(UserCreatedEvent.builder()
+                .userId(saved.getId())
+                .email(saved.getEmail())
+                .fullName(saved.getFullName())
+                .profileType(saved.getProfileType())
+                .occurredOn(Instant.now())
+                .build());
 
         return userProfileMapper.toUserProfileResponse(saved);
     }
 
     private void validateEmailNotExists(String email) {
         if (userRepository.existsByEmail(email)) {
-            throw new ConflictException(ErrorCode.USER_ALREADY_EXISTS);
+            throw new ConflictException(ErrorCode.IDENTITY_002, "Email déjà utilisé");
         }
     }
 
     private void validateUsernameNotExists(String username) {
         if (userRepository.existsByUsername(username)) {
-            throw new ConflictException(ErrorCode.USERNAME_ALREADY_EXISTS);
+            throw new ConflictException(ErrorCode.IDENTITY_003, "Nom d'utilisateur déjà utilisé");
         }
     }
 
@@ -123,7 +128,7 @@ public class CreateStudentUseCaseImpl implements CreateStudentUseCase {
     }
 
     private String generateStudentId() {
-        String year = String.valueOf(LocalDateTime.now().getYear());
+        String year = String.valueOf(LocalDate.now().getYear());
         long count = studentProfileRepository.count() + 1;
         return String.format("STD-%s-%05d", year, count);
     }

@@ -1,12 +1,16 @@
 package com.monolith.modularmonolith.identity.internal.adapter.web;
 
 import com.monolith.modularmonolith.identity.internal.application.port.inbound.*;
+import com.monolith.modularmonolith.identity.internal.domain.model.ProfileType;
 import com.monolith.modularmonolith.identity.internal.dto.request.*;
 import com.monolith.modularmonolith.identity.internal.dto.response.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -62,10 +66,12 @@ public class UserAdminController {
     public ResponseEntity<Page<UserSummaryResponse>> listUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String profileType,
+            @RequestParam(required = false) ProfileType profileType,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean active) {
-        return ResponseEntity.ok(listUsers.execute(page, size, profileType, search, active));
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return ResponseEntity.ok(listUsers.execute(pageable, profileType, search, active));
     }
 
     @GetMapping("/{userId}")

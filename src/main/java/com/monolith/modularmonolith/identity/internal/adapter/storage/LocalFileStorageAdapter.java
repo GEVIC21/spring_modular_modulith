@@ -1,139 +1,153 @@
 package com.monolith.modularmonolith.identity.internal.adapter.storage;
 
 import com.monolith.modularmonolith.identity.internal.application.port.outbound.FileStorage;
-import com.monolith.modularmonolith.shared.exception.DomainException;
 import com.monolith.modularmonolith.shared.exception.ErrorCode;
-import jakarta.annotation.PostConstruct;
+import com.monolith.modularmonolith.shared.exception.ResourceNotFoundException;
+import com.monolith.modularmonolith.shared.exception.ValidationException;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.tika.Tika;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import jakarta.annotation.PostConstruct;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.Set;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
 @Component
 public class LocalFileStorageAdapter implements FileStorage {
 
-    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif", "webp");
-    private static final Set<String> ALLOWED_MIME_TYPES = Set.of(
+    private final Path storageLocation;
+    private static final List<String> ALLOWED_TYPES = List.of(
             "image/jpeg", "image/png", "image/gif", "image/webp"
     );
+    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-    @Value("${app.upload.directory}")
-    private String uploadDir;
-
-    private Path rootLocation;
-    private final Tika tika = new Tika();
+    public LocalFileStorageAdapter(
+            @Value("${app.storage.upload-dir:uploads/avatars}") String uploadDir) {
+        this.storageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
+    }
 
     @PostConstruct
     public void init() {
-        this.rootLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
         try {
-            Files.createDirectories(rootLocation);
-            log.info("Upload directory initialized: {}", this.rootLocation);
+            Files.createDirectories(storageLocation);
         } catch (IOException e) {
-            throw new DomainException(ErrorCode.INTERNAL_ERROR, "Could not create upload directory");
+            log.error("Impossible de créer le répertoire: {}", storageLocation, e);
+            throw new ValidationException(ErrorCode.STORAGE_001,
+                    "Impossible d'initialiser le stockage");
         }
     }
 
     @Override
-    public String store(MultipartFile file, String identifier) {
+    public String store(MultipartFile file, String directory) {
         validateFile(file);
+        String original = file.getOriginalFilename();
+        String safeName = (original != null) ? original.replaceAll("[^a-zA-Z0-9.-]", "_") : "file";
+        String filename = UUID.randomUUID() + "_" + safeName;
 
-        String original = StringUtils.cleanPath(file.getOriginalFilename());
-        String extension = StringUtils.getFilenameExtension(original);
-        if (extension == null) extension = "png";
-
-        String filename = identifier.replaceAll("[^a-zA-Z0-9]", "_")
-                + "_" + UUID.randomUUID().toString().substring(0, 8)
-                + "." + extension.toLowerCase();
+        Path targetDir = storageLocation.resolve(directory).normalize();
+        Path targetPath = targetDir.resolve(filename);
 
         try {
-            Files.copy(file.getInputStream(), rootLocation.resolve(filename), StandardCopyOption.REPLACE_EXISTING);
-            return filename;
+            Files.createDirectories(targetDir);
+            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+            log.info("Fichier stocké: {}", targetPath);
+            return directory + "/" + filename;
         } catch (IOException e) {
-            throw new DomainException(ErrorCode.INTERNAL_ERROR, "Failed to store file");
+            log.error("Erreur stockage: {}", filename, e);
+            throw new ValidationException(ErrorCode.STORAGE_001, "Erreur stockage fichier");
+        }
+    }
+
+    @Override
+    public void delete(String filename) {
+        if (filename == null || filename.isBlank()) return;
+        try {
+            Path filePath = resolvePath(filename);
+            Files.deleteIfExists(filePath);
+            // Supprime aussi la thumbnail si elle existe
+            Path thumbPath = resolvePath("thumb_" + filename);
+            Files.deleteIfExists(thumbPath);
+            log.info("Fichier(s) supprimé(s): {}", filename);
+        } catch (IOException e) {
+            log.error("Erreur suppression: {}", filename, e);
         }
     }
 
     @Override
     public Resource load(String filename) {
         try {
-            Path file = rootLocation.resolve(filename);
-            Resource resource = new UrlResource(file.toUri());
+            Path filePath = resolvePath(filename);
+            Resource resource = new UrlResource(filePath.toUri());
             if (resource.exists() && resource.isReadable()) {
                 return resource;
             }
-            throw new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "File not found: " + filename);
+            throw new ResourceNotFoundException("Fichier", filename);
         } catch (MalformedURLException e) {
-            throw new DomainException(ErrorCode.RESOURCE_NOT_FOUND, "Invalid file: " + filename);
+            throw new ResourceNotFoundException("Fichier", filename);
         }
     }
 
     @Override
-    public void delete(String filename) {
-        if (filename == null) return;
-        try {
-            Files.deleteIfExists(rootLocation.resolve(filename));
-            Files.deleteIfExists(rootLocation.resolve("thumb_" + filename));
-        } catch (IOException e) {
-            log.warn("Failed to delete file: {}", filename);
-        }
-    }
-
-    @Override
-    public String resolveContentType(String filename) {
-        if (filename.endsWith(".png")) return "image/png";
-        if (filename.endsWith(".gif")) return "image/gif";
-        if (filename.endsWith(".webp")) return "image/webp";
-        return "image/jpeg";
+    public String getUrl(String filename) {
+        if (filename == null || filename.isBlank()) return null;
+        return ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/api/v1/public/avatars/")
+                .path(filename)
+                .toUriString();
     }
 
     @Override
     public String getFileUrl(String filename) {
-        return "/api/v1/public/avatars/" + filename;
+        return getUrl(filename);
     }
 
     @Override
     public String getThumbnailUrl(String filename) {
-        return "/api/v1/public/avatars/thumb_" + filename;
+        if (filename == null || filename.isBlank()) return null;
+        return ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/api/v1/public/avatars/thumb/")
+                .path(filename)
+                .toUriString();
+    }
+
+    @Override
+    public String resolveContentType(String filename) {
+        if (filename == null) return "application/octet-stream";
+        String lower = filename.toLowerCase();
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".gif")) return "image/gif";
+        if (lower.endsWith(".webp")) return "image/webp";
+        return "image/jpeg";
     }
 
     private void validateFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new DomainException(ErrorCode.VALIDATION_ERROR, "File is empty");
+            throw new ValidationException(ErrorCode.VALID_001, "Fichier requis");
         }
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new ValidationException(ErrorCode.VALID_003, "Fichier trop volumineux (max 5 Mo)");
+        }
+        if (!ALLOWED_TYPES.contains(file.getContentType())) {
+            throw new ValidationException(ErrorCode.VALID_002, "Type non supporté (JPEG, PNG, GIF, WEBP)");
+        }
+    }
 
-        String original = StringUtils.cleanPath(file.getOriginalFilename());
-        String extension = StringUtils.getFilenameExtension(original);
-        if (extension == null || !ALLOWED_EXTENSIONS.contains(extension.toLowerCase())) {
-            throw new DomainException(ErrorCode.INVALID_FILE_TYPE);
+    private Path resolvePath(String filename) {
+        Path target = storageLocation.resolve(filename).normalize();
+        if (!target.startsWith(storageLocation)) {
+            throw new ValidationException(ErrorCode.VALID_001, "Chemin invalide");
         }
-
-        if (original.contains("..")) {
-            throw new DomainException(ErrorCode.VALIDATION_ERROR, "Invalid filename");
-        }
-
-        try (InputStream is = file.getInputStream()) {
-            String detected = tika.detect(is);
-            if (!ALLOWED_MIME_TYPES.contains(detected)) {
-                throw new DomainException(ErrorCode.INVALID_FILE_TYPE, "Detected: " + detected);
-            }
-        } catch (IOException e) {
-            throw new DomainException(ErrorCode.INTERNAL_ERROR, "Could not verify file type");
-        }
+        return target;
     }
 }

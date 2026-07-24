@@ -16,14 +16,7 @@ public class UserPasswordVerifierImpl implements UserPasswordVerifier {
     @Override
     public boolean verifyPassword(String email, String rawPassword) {
         return userRepository.findByEmail(email)
-                .map(user -> passwordEncoder.matches(rawPassword, user.getPassword()))
-                .orElse(false);
-    }
-
-    @Override
-    public boolean verifyPasswordById(Long userId, String rawPassword) {
-        return userRepository.findById(userId)
-                .map(user -> passwordEncoder.matches(rawPassword, user.getPassword()))
+                .map(u -> passwordEncoder.matches(rawPassword, u.getPassword()))
                 .orElse(false);
     }
 }

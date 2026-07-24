@@ -5,37 +5,30 @@ import com.monolith.modularmonolith.identity.internal.domain.model.Role;
 import com.monolith.modularmonolith.identity.internal.domain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.Arrays;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class UserRoleVerifierImpl implements UserRoleVerifier {
 
     private final UserRepository userRepository;
 
     @Override
-    public boolean hasRole(Long userId, String roleName) {
+    public boolean hasRole(Long userId, String role) {
         return userRepository.findById(userId)
-                .map(user -> user.hasRole(Role.valueOf(roleName)))
+                .map(u -> u.hasRole(Role.valueOf(role)))
                 .orElse(false);
     }
 
     @Override
-    public boolean hasAnyRole(Long userId, Set<String> roleNames) {
-        Set<Role> roles = roleNames.stream()
-                .map(Role::valueOf)
-                .collect(Collectors.toSet());
+    public boolean hasAnyRole(Long userId, String... roles) {
         return userRepository.findById(userId)
-                .map(user -> user.hasAnyRole(roles))
-                .orElse(false);
-    }
-
-    @Override
-    public boolean hasRole(String email, String roleName) {
-        return userRepository.findByEmail(email)
-                .map(user -> user.hasRole(Role.valueOf(roleName)))
+                .map(u -> Arrays.stream(roles)
+                        .map(Role::valueOf)
+                        .anyMatch(u::hasAnyRole))
                 .orElse(false);
     }
 }

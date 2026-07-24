@@ -22,7 +22,8 @@ public class GetUserProfileUseCaseImpl implements GetUserProfileUseCase {
     @Transactional(readOnly = true)
     public UserProfileResponse byEmail(String email) {
         User user = userRepository.findByEmailWithProfiles(email)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.IDENTITY_001, "Utilisateur introuvable avec l'email : " + email));
         return userProfileMapper.toUserProfileResponse(user);
     }
 

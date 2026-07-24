@@ -1,6 +1,7 @@
 package com.monolith.modularmonolith.identity.internal.adapter.web;
 
 import com.monolith.modularmonolith.identity.internal.application.port.inbound.*;
+import com.monolith.modularmonolith.identity.internal.application.port.outbound.FileStorage;
 import com.monolith.modularmonolith.identity.internal.dto.request.*;
 import com.monolith.modularmonolith.identity.internal.dto.response.*;
 import jakarta.validation.Valid;
@@ -25,7 +26,7 @@ public class UserProfileController {
     private final UpdateAdminProfileUseCase updateAdminProfile;
     private final UpdateAvatarUseCase updateAvatar;
     private final GetAvatarUseCase getAvatar;
-    private final com.monolith.modularmonolith.identity.internal.application.port.outbound.FileStorage fileStorage;
+    private final FileStorage fileStorage;
 
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
@@ -74,15 +75,15 @@ public class UserProfileController {
         String email = authentication.getName();
         log.info("Uploading avatar for: {}", email);
 
-        String filename = fileStorage.store(file, email);
-        updateAvatar.execute(email, filename);
+        updateAvatar.execute(email, file);
 
-        return ResponseEntity.ok(new AvatarUploadResult(
-                "Avatar mis à jour avec succès",
-                filename,
-                fileStorage.getFileUrl(filename),
-                fileStorage.getThumbnailUrl(filename)
-        ));
+        String filename = getAvatar.getFilename(email);
+        return ResponseEntity.ok(AvatarUploadResult.builder()
+                .message("Avatar mis à jour avec succès")
+                .filename(filename)
+                .avatarUrl(fileStorage.getFileUrl(filename))
+                .thumbnailUrl(fileStorage.getThumbnailUrl(filename))
+                .build());
     }
 
     @DeleteMapping("/me/avatar")

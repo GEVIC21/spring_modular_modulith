@@ -15,6 +15,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
+import java.util.stream.Collectors;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -34,17 +36,20 @@ public class AuthenticateUseCaseImpl implements AuthenticateUseCase {
             UserSummary user = userLookup.findByEmail(request.email())
                     .orElseThrow(() -> new UnauthorizedException("Utilisateur introuvable après authentification"));
 
-            String token = jwtUtils.generateToken(
-                    new org.springframework.security.core.userdetails.User(
-                            user.email(), "", user.roles().stream()
-                            .map(r -> new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + r))
-                            .toList()
-                    )
-            );
+            String token = jwtUtils.generateToken(authentication);
+
+            var rolesAsString = user.roles().stream()
+                    .map(Enum::name)
+                    .collect(Collectors.toSet());
 
             log.info("Authentication successful for {}", request.email());
 
-            return new AuthResponse(token, user.email(), user.username(), user.roles());
+            return AuthResponse.builder()
+                    .token(token)
+                    .email(user.email())
+                    .username(user.username())
+                    .roles(rolesAsString)
+                    .build();
 
         } catch (BadCredentialsException ex) {
             log.warn("Authentication failed for {}: bad credentials", request.email());
