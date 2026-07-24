@@ -31,18 +31,21 @@ public class LocalFileStorageAdapter implements FileStorage {
             "image/jpeg", "image/png", "image/gif", "image/webp"
     );
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024;
+    private static final String AVATAR_DIR = "avatars";
 
     public LocalFileStorageAdapter(
-            @Value("${app.storage.upload-dir:uploads/avatars}") String uploadDir) {
+            @Value("${app.storage.upload-dir:uploads}") String uploadDir) {
         this.storageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
     }
 
     @PostConstruct
     public void init() {
         try {
-            Files.createDirectories(storageLocation);
+            Path avatarsDir = storageLocation.resolve(AVATAR_DIR);
+            Files.createDirectories(avatarsDir);
+            Files.createDirectories(avatarsDir.resolve("thumb"));
+            log.info("📁 Stockage avatar initialisé : {}", avatarsDir);
         } catch (IOException e) {
-            log.error("Impossible de créer le répertoire: {}", storageLocation, e);
             throw new ValidationException(ErrorCode.STORAGE_001,
                     "Impossible d'initialiser le stockage");
         }
@@ -55,16 +58,14 @@ public class LocalFileStorageAdapter implements FileStorage {
         String safeName = (original != null) ? original.replaceAll("[^a-zA-Z0-9.-]", "_") : "file";
         String filename = UUID.randomUUID() + "_" + safeName;
 
-        Path targetDir = storageLocation.resolve(directory).normalize();
+        Path targetDir = storageLocation.resolve(AVATAR_DIR).normalize();
         Path targetPath = targetDir.resolve(filename);
 
         try {
-            Files.createDirectories(targetDir);
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-            log.info("Fichier stocké: {}", targetPath);
-            return directory + "/" + filename;
+            log.info("Fichier stocké : {}", targetPath);
+            return filename; // ← SEULEMENT le nom, pas "avatars/..."
         } catch (IOException e) {
-            log.error("Erreur stockage: {}", filename, e);
             throw new ValidationException(ErrorCode.STORAGE_001, "Erreur stockage fichier");
         }
     }
@@ -73,14 +74,10 @@ public class LocalFileStorageAdapter implements FileStorage {
     public void delete(String filename) {
         if (filename == null || filename.isBlank()) return;
         try {
-            Path filePath = resolvePath(filename);
-            Files.deleteIfExists(filePath);
-            // Supprime aussi la thumbnail si elle existe
-            Path thumbPath = resolvePath("thumb_" + filename);
-            Files.deleteIfExists(thumbPath);
-            log.info("Fichier(s) supprimé(s): {}", filename);
+            Files.deleteIfExists(resolvePath(filename));
+            Files.deleteIfExists(resolveThumbPath(filename));
         } catch (IOException e) {
-            log.error("Erreur suppression: {}", filename, e);
+            log.error("Erreur suppression : {}", filename, e);
         }
     }
 
@@ -89,9 +86,7 @@ public class LocalFileStorageAdapter implements FileStorage {
         try {
             Path filePath = resolvePath(filename);
             Resource resource = new UrlResource(filePath.toUri());
-            if (resource.exists() && resource.isReadable()) {
-                return resource;
-            }
+            if (resource.exists() && resource.isReadable()) return resource;
             throw new ResourceNotFoundException("Fichier", filename);
         } catch (MalformedURLException e) {
             throw new ResourceNotFoundException("Fichier", filename);
@@ -108,9 +103,7 @@ public class LocalFileStorageAdapter implements FileStorage {
     }
 
     @Override
-    public String getFileUrl(String filename) {
-        return getUrl(filename);
-    }
+    public String getFileUrl(String filename) { return getUrl(filename); }
 
     @Override
     public String getThumbnailUrl(String filename) {
@@ -132,22 +125,20 @@ public class LocalFileStorageAdapter implements FileStorage {
     }
 
     private void validateFile(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new ValidationException(ErrorCode.VALID_001, "Fichier requis");
-        }
-        if (file.getSize() > MAX_FILE_SIZE) {
-            throw new ValidationException(ErrorCode.VALID_003, "Fichier trop volumineux (max 5 Mo)");
-        }
-        if (!ALLOWED_TYPES.contains(file.getContentType())) {
-            throw new ValidationException(ErrorCode.VALID_002, "Type non supporté (JPEG, PNG, GIF, WEBP)");
-        }
+        if (file == null || file.isEmpty()) throw new ValidationException(ErrorCode.VALID_001, "Fichier requis");
+        if (file.getSize() > MAX_FILE_SIZE) throw new ValidationException(ErrorCode.VALID_003, "Fichier trop volumineux (max 5 Mo)");
+        if (!ALLOWED_TYPES.contains(file.getContentType())) throw new ValidationException(ErrorCode.VALID_002, "Type non supporté");
     }
 
     private Path resolvePath(String filename) {
-        Path target = storageLocation.resolve(filename).normalize();
-        if (!target.startsWith(storageLocation)) {
-            throw new ValidationException(ErrorCode.VALID_001, "Chemin invalide");
-        }
+        Path target = storageLocation.resolve(AVATAR_DIR).resolve(filename).normalize();
+        if (!target.startsWith(storageLocation.resolve(AVATAR_DIR))) throw new ValidationException(ErrorCode.VALID_001, "Chemin invalide");
+        return target;
+    }
+
+    private Path resolveThumbPath(String filename) {
+        Path target = storageLocation.resolve(AVATAR_DIR).resolve("thumb").resolve("thumb_" + filename).normalize();
+        if (!target.startsWith(storageLocation.resolve(AVATAR_DIR))) throw new ValidationException(ErrorCode.VALID_001, "Chemin invalide");
         return target;
     }
 }

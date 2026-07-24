@@ -24,7 +24,7 @@ public class GetUserProfileUseCaseImpl implements GetUserProfileUseCase {
         User user = userRepository.findByEmailWithProfiles(email)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         ErrorCode.IDENTITY_001, "Utilisateur introuvable avec l'email : " + email));
-        return userProfileMapper.toUserProfileResponse(user);
+        return userProfileMapper.toResponse(user);  // ← CORRIGÉ : toResponse()
     }
 
     @Override
@@ -32,6 +32,6 @@ public class GetUserProfileUseCaseImpl implements GetUserProfileUseCase {
     public UserProfileResponse byId(Long userId) {
         User user = userRepository.findByIdWithProfiles(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", userId));
-        return userProfileMapper.toUserProfileResponse(user);
+        return userProfileMapper.toResponse(user);  // ← CORRIGÉ : toResponse()
     }
 }

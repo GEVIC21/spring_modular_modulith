@@ -20,10 +20,12 @@ public class PublicAvatarController {
 
     private final FileStorage fileStorage;
 
-    @GetMapping("/{filename}")
+    @GetMapping("/{filename:.+}")
     public ResponseEntity<Resource> getAvatar(@PathVariable String filename) {
-        Resource resource = fileStorage.load(filename);
-        String contentType = fileStorage.resolveContentType(filename);
+        // Nettoie les anciennes URLs corrompues (avatars/avatars/...)
+        String clean = filename.replace("avatars/", "");
+        Resource resource = fileStorage.load(clean);
+        String contentType = fileStorage.resolveContentType(clean);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(contentType))
@@ -31,10 +33,11 @@ public class PublicAvatarController {
                 .body(resource);
     }
 
-    @GetMapping("/thumb/{filename}")
+    @GetMapping("/thumb/{filename:.+}")
     public ResponseEntity<Resource> getThumbnail(@PathVariable String filename) {
-        Resource resource = fileStorage.load("thumb_" + filename);
-        String contentType = fileStorage.resolveContentType(filename);
+        String clean = filename.replace("avatars/", "");
+        Resource resource = fileStorage.load("thumb_" + clean);
+        String contentType = fileStorage.resolveContentType(clean);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(contentType))

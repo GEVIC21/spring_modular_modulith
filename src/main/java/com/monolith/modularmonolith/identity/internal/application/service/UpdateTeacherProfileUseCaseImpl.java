@@ -52,6 +52,6 @@ public class UpdateTeacherProfileUseCaseImpl implements UpdateTeacherProfileUseC
         teacherProfileRepository.save(profile);
 
         log.info("Profil enseignant mis à jour: {}", email);
-        return mapper.toUserProfileResponse(user);
+        return mapper.toResponse(user);
     }
 }

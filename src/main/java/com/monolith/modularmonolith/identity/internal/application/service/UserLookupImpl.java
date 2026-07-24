@@ -29,7 +29,8 @@ public class UserLookupImpl implements UserLookup {
                         .username(r.username())
                         .fullName(r.fullName())
                         .profileType(r.profileType())
-                        .roles(r.roles())
+                        // Si r.roles() est null, on passe un Set vide à la place
+                        .roles(r.roles() != null ? r.roles() : java.util.Set.of())
                         .active(r.active())
                         .build());
     }
@@ -44,7 +45,8 @@ public class UserLookupImpl implements UserLookup {
                         .username(r.username())
                         .fullName(r.fullName())
                         .profileType(r.profileType())
-                        .roles(r.roles())
+                        // Même sécurité ici
+                        .roles(r.roles() != null ? r.roles() : java.util.Set.of())
                         .active(r.active())
                         .build());
     }

@@ -6,12 +6,10 @@ import com.monolith.modularmonolith.identity.internal.domain.model.User;
 import com.monolith.modularmonolith.identity.internal.domain.repository.UserRepository;
 import com.monolith.modularmonolith.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -25,15 +23,17 @@ public class UpdateAvatarUseCaseImpl implements UpdateAvatarUseCase {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", email));
 
-        // Supprime l'ancien avatar si présent
-        if (user.getAvatarFilename() != null) {
-            fileStorage.delete(user.getAvatarFilename());
+        // 1. Supprime l'ancien fichier sur disque
+        String oldFilename = user.getAvatarFilename();
+        if (oldFilename != null && !oldFilename.isBlank()) {
+            fileStorage.delete(oldFilename);
         }
 
-        String filename = fileStorage.store(file, "avatars");
-        user.setAvatarFilename(filename);
-        userRepository.save(user);
+        // 2. Stocke le nouveau (retourne juste "uuid_nom.png")
+        String newFilename = fileStorage.store(file, "avatars");
 
-        log.info("Avatar updated for {}", email);
+        // 3. 🔴 CRITIQUE : persiste le filename dans l'entité
+        user.setAvatarFilename(newFilename);
+        userRepository.save(user);
     }
 }

@@ -3,7 +3,6 @@ package com.monolith.modularmonolith.identity.api;
 import com.monolith.modularmonolith.identity.internal.domain.model.ProfileType;
 import com.monolith.modularmonolith.identity.internal.domain.model.Role;
 import lombok.Builder;
-
 import java.util.Set;
 
 @Builder
@@ -15,4 +14,11 @@ public record UserSummary(
         ProfileType profileType,
         Set<Role> roles,
         boolean active
-) {}
+) {
+    // AJOUTEZ CE BLOC : Il intercepte la création et remplace le null par un Set vide
+    public UserSummary {
+        if (roles == null) {
+            roles = Set.of();
+        }
+    }
+}

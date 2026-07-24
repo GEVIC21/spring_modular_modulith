@@ -15,7 +15,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.MySQLDialect  # ← Déplacé ici si vraiment nécessaire
+        dialect: org.hibernate.dialect.MySQLDialect
 
   servlet:
     multipart:
@@ -30,11 +30,6 @@ app:
       secret: ${JWT_SECRET:votre_cle_par_defaut_pour_le_dev}
       expiration-ms: 86400000
 
-  upload:
-    directory: ${UPLOAD_DIR:${user.home}/school-management/uploads/avatars}
-    allowed-extensions: jpg, jpeg, png, gif, webp
-    allowed-mime-types: image/jpeg, image/png, image/gif, image/webp
-    max-file-size: 5242880
-    max-width: 1024
-    max-height: 1024
-    thumbnail-size: 150
+  storage:
+    # Le point (.) signifie "la racine du projet en cours"
+    upload-dir: ${UPLOAD_DIR:./uploads}

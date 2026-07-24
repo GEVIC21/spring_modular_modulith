@@ -39,6 +39,6 @@ public class PatchUserUseCaseImpl implements PatchUserUseCase {
 
         User saved = userRepository.save(user);
         log.info("User {} patched by admin", userId);
-        return mapper.toUserProfileResponse(saved);
+        return mapper.toResponse(saved);
     }
 }

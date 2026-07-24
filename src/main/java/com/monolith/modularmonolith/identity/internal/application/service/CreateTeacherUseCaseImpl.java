@@ -93,7 +93,7 @@ public class CreateTeacherUseCaseImpl implements CreateTeacherUseCase {
                 .occurredOn(Instant.now())
                 .build());
 
-        return userProfileMapper.toUserProfileResponse(saved);
+        return userProfileMapper.toResponse(saved);
     }
 
     private void validateEmailNotExists(String email) {

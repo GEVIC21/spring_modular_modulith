@@ -31,3 +31,11 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# ─── UPLOADS ET AVATARS ───
+# Ignore le dossier uploads local créé à la racine du projet
+uploads/
+
+# Ignore tout le contenu du dossier, mais conserve la structure si nécessaire
+# (Optionnel : utile si vous changez votre configuration pour "./uploads")
+**/uploads/**

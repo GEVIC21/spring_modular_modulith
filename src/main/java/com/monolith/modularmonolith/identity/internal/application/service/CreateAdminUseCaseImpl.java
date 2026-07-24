@@ -86,7 +86,7 @@ public class CreateAdminUseCaseImpl implements CreateAdminUseCase {
                 .occurredOn(Instant.now())
                 .build());
 
-        return userProfileMapper.toUserProfileResponse(saved);
+        return userProfileMapper.toResponse(saved);
     }
 
     private void validateEmailNotExists(String email) {

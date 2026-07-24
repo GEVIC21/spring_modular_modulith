@@ -5,11 +5,9 @@ import com.monolith.modularmonolith.identity.internal.domain.model.User;
 import com.monolith.modularmonolith.identity.internal.domain.repository.UserRepository;
 import com.monolith.modularmonolith.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -30,6 +28,5 @@ public class GetAvatarUseCaseImpl implements GetAvatarUseCase {
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", email));
         user.setAvatarFilename(null);
         userRepository.save(user);
-        log.info("Avatar reference cleared for {}", email);
     }
 }

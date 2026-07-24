@@ -38,7 +38,7 @@ public class UpdateStudentProfileUseCaseImpl implements UpdateStudentProfileUseC
 
         User saved = userRepository.save(user);
         log.info("Student profile updated for {}", email);
-        return userProfileMapper.toUserProfileResponse(saved);
+        return userProfileMapper.toResponse(saved);
     }
 
     private void updateBaseInfo(User user, UpdateStudentProfileRequest r) {
